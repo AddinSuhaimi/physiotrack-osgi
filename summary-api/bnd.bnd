@@ -1,0 +1,4 @@
+Bundle-Name: PhysioTrack summary API
+Bundle-SymbolicName: com.physiotrack.summary.api
+Bundle-Version: ${project.version}
+-exportcontents: com.physiotrack.summary.api.*

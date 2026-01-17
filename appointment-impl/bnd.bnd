@@ -1,0 +1,9 @@
+Bundle-Name: PhysioTrack appointment Impl
+Bundle-SymbolicName: com.physiotrack.appointment.impl
+Bundle-Version: ${project.version}
+
+# Generate DS component XML from annotations
+-dsannotations: *
+
+# Keep impl packages private
+Private-Package: com.physiotrack.appointment.impl.*

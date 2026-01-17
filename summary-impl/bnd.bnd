@@ -1,0 +1,9 @@
+Bundle-Name: PhysioTrack summary Impl
+Bundle-SymbolicName: com.physiotrack.summary.impl
+Bundle-Version: ${project.version}
+
+# Generate DS component XML from annotations
+-dsannotations: *
+
+# Keep impl packages private
+Private-Package: com.physiotrack.summary.impl.*

@@ -1,0 +1,4 @@
+Bundle-Name: PhysioTrack user-management API
+Bundle-SymbolicName: com.physiotrack.user-management.api
+Bundle-Version: ${project.version}
+-exportcontents: com.physiotrack.user.management.api.*

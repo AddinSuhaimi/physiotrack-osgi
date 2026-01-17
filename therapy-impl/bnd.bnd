@@ -1,0 +1,9 @@
+Bundle-Name: PhysioTrack therapy Impl
+Bundle-SymbolicName: com.physiotrack.therapy.impl
+Bundle-Version: ${project.version}
+
+# Generate DS component XML from annotations
+-dsannotations: *
+
+# Keep impl packages private
+Private-Package: com.physiotrack.therapy.impl.*

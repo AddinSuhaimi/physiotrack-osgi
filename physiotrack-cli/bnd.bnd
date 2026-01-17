@@ -1,0 +1,7 @@
+Bundle-Name: PhysioTrack CLI
+Bundle-SymbolicName: com.physiotrack.cli
+Bundle-Version: ${project.version}
+
+-dsannotations: *
+
+Private-Package: com.physiotrack.cli.*

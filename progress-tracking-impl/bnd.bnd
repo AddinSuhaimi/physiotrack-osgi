@@ -1,0 +1,9 @@
+Bundle-Name: PhysioTrack progress-tracking Impl
+Bundle-SymbolicName: com.physiotrack.progress-tracking.impl
+Bundle-Version: ${project.version}
+
+# Generate DS component XML from annotations
+-dsannotations: *
+
+# Keep impl packages private
+Private-Package: com.physiotrack.progress.tracking.impl.*

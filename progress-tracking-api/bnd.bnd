@@ -1,0 +1,4 @@
+Bundle-Name: PhysioTrack progress-tracking API
+Bundle-SymbolicName: com.physiotrack.progress-tracking.api
+Bundle-Version: ${project.version}
+-exportcontents: com.physiotrack.progress.tracking.api.*
