@@ -31,8 +31,10 @@
     <module>personal-info-impl</module>
 
     <module>physiotrack-cli</module>
-    <module>test</module>
-  </modules>
+    <module>app-runner</module>
+    <module>test-api</module>
+    <module>test-impl</module>
+</modules>
 
   <properties>
     <maven.compiler.release>17</maven.compiler.release>
@@ -42,7 +44,7 @@
     <bnd.version>6.4.0</bnd.version>
     <junit.version>5.10.2</junit.version>
     <osgi.core.version>8.0.0</osgi.core.version>
-    <osgi.cmpn.version>8.1.0</osgi.cmpn.version>
+    <osgi.cmpn.version>1.5.1</osgi.cmpn.version>
   </properties>
 
   <dependencyManagement>
@@ -50,7 +52,7 @@
       <!-- OSGi APIs -->
       <dependency>
         <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.core</artifactId>
+        <artifactId>osgi.core</artifactId>
         <version>${osgi.core.version}</version>
       </dependency>
       <dependency>

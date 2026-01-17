@@ -1,0 +1,15 @@
+Manifest-Version: 1.0
+Bnd-LastModified: 1768635363401
+Build-Jdk-Spec: 21
+Bundle-Activator: com.physiotrack.app.Activator
+Bundle-ManifestVersion: 2
+Bundle-Name: PhysioTrack App Runner
+Bundle-SymbolicName: com.physiotrack.app.runner
+Bundle-Version: 0.1.0.SNAPSHOT
+Created-By: Apache Maven Bundle Plugin 5.1.9
+Export-Package: com.physiotrack.app;uses:="org.osgi.framework";version
+ ="0.1.0.SNAPSHOT"
+Import-Package: org.osgi.framework;version="[1.8,2)",java.io,java.lang
+Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=17))"
+Tool: Bnd-6.3.1.202206071316
+

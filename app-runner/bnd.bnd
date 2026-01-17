@@ -1,0 +1,10 @@
+Bundle-SymbolicName: com.physiotrack.app.runner
+Bundle-Name: PhysioTrack App Runner
+Bundle-Version: 0.1.0.SNAPSHOT
+Bundle-Activator: com.physiotrack.app.Activator
+
+# Keep imports flexible for now
+Import-Package: \
+  org.osgi.framework;version='[1.8,2)',\
+  *
+
