@@ -7,3 +7,7 @@ Bundle-Version: ${project.version}
 
 # Keep impl packages private
 Private-Package: com.physiotrack.appointment.impl.*
+
+Import-Package: \
+ com.physiotrack.user.management.api.*;version="[0.1,2)",\
+ *

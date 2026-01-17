@@ -38,7 +38,7 @@
         <configuration>
           <instructions>
             <Bundle-SymbolicName>com.physiotrack.journal.api</Bundle-SymbolicName>
-            <Export-Package>com.physiotrack.journal.api</Export-Package>
+            <Export-Package>com.physiotrack.journal.api.*</Export-Package>
             <Import-Package>*</Import-Package>
           </instructions>
         </configuration>

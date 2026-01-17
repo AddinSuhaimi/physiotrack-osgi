@@ -44,7 +44,7 @@
         <configuration>
           <instructions>
             <Bundle-SymbolicName>com.physiotrack.progress-tracking.impl</Bundle-SymbolicName>
-            <Private-Package>com.physiotrack.progress.tracking.impl</Private-Package>
+            <Private-Package>com.physiotrack.progress.tracking.impl.*</Private-Package>
             <Bundle-Activator>com.physiotrack.progress.tracking.impl.Activator</Bundle-Activator>
             <Import-Package>*</Import-Package>
           </instructions>

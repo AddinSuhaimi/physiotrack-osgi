@@ -43,7 +43,7 @@
         <configuration>
           <instructions>
             <Bundle-SymbolicName>com.physiotrack.test.impl</Bundle-SymbolicName>
-            <Private-Package>com.physiotrack.test.impl</Private-Package>
+            <Private-Package>com.physiotrack.test.impl.*</Private-Package>
             <Bundle-Activator>com.physiotrack.test.impl.Activator</Bundle-Activator>
             <Import-Package>*</Import-Package>
           </instructions>
