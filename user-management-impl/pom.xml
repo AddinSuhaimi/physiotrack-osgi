@@ -44,7 +44,7 @@
         <configuration>
           <instructions>
             <Bundle-SymbolicName>com.physiotrack.user-management.impl</Bundle-SymbolicName>
-            <Private-Package>com.physiotrack.user.management.impl</Private-Package>
+            <Private-Package>com.physiotrack.user.management.impl.*</Private-Package>
             <Bundle-Activator>com.physiotrack.user.management.impl.Activator</Bundle-Activator>
             <Import-Package>*</Import-Package>
           </instructions>

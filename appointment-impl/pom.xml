@@ -20,6 +20,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.physiotrack</groupId>
+      <artifactId>user-management-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.osgi</groupId>
       <artifactId>osgi.core</artifactId>
       <version>${osgi.core.version}</version>
@@ -44,7 +50,7 @@
         <configuration>
           <instructions>
             <Bundle-SymbolicName>com.physiotrack.appointment.impl</Bundle-SymbolicName>
-            <Private-Package>com.physiotrack.appointment.impl</Private-Package>
+            <Private-Package>com.physiotrack.appointment.impl.*</Private-Package>
             <Bundle-Activator>com.physiotrack.appointment.impl.Activator</Bundle-Activator>
             <Import-Package>*</Import-Package>
           </instructions>

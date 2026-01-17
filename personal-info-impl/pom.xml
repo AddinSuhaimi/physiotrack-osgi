@@ -44,7 +44,7 @@
         <configuration>
           <instructions>
             <Bundle-SymbolicName>com.physiotrack.personal-info.impl</Bundle-SymbolicName>
-            <Private-Package>com.physiotrack.personal.info.impl</Private-Package>
+            <Private-Package>com.physiotrack.personal.info.impl.*</Private-Package>
             <Bundle-Activator>com.physiotrack.personal.info.impl.Activator</Bundle-Activator>
             <Import-Package>*</Import-Package>
           </instructions>

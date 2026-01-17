@@ -38,7 +38,7 @@
         <configuration>
           <instructions>
             <Bundle-SymbolicName>com.physiotrack.progress-tracking.api</Bundle-SymbolicName>
-            <Export-Package>com.physiotrack.progress.tracking.api</Export-Package>
+            <Export-Package>com.physiotrack.progress.tracking.api.*</Export-Package>
             <Import-Package>*</Import-Package>
           </instructions>
         </configuration>

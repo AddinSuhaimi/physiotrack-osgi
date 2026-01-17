@@ -1,6 +1,8 @@
 package com.physiotrack.app;
 
 import com.physiotrack.appointment.api.AppointmentService;
+import com.physiotrack.appointment.api.ScheduleService;
+import com.physiotrack.appointment.api.model.Appointment;
 import com.physiotrack.journal.api.JournalService;
 import com.physiotrack.personal.info.api.PersonalInfoService;
 import com.physiotrack.progress.tracking.api.ProgressTrackingService;
@@ -14,8 +16,12 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceReference;
 import org.osgi.framework.ServiceRegistration;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Dictionary;
 import java.util.Hashtable;
+import java.util.List;
 
 public class Activator implements BundleActivator {
 
@@ -61,9 +67,8 @@ public class Activator implements BundleActivator {
             System.out.println("Modules:");
             System.out.println("  appointment | therapy | journal | summary | progress | user | personal | test");
             System.out.println();
-            System.out.println("Use-case commands:");
-            System.out.println("  physio:uc");
-            System.out.println("  physio:appt <send|edit|cancel|view|approve|decline> [args]");
+            System.out.println("Run module commands:");
+            System.out.println("  physio:appt <send|edit|cancel|view|approve|reject|pending> [args]");
             System.out.println("  physio:therapy   (TODO)");
             System.out.println("  physio:journal   (TODO)");
             System.out.println("  physio:summary   (TODO)");
@@ -132,87 +137,131 @@ public class Activator implements BundleActivator {
             } catch (Exception e) {
                 System.out.println("[" + label + "] ERROR calling ping(): " + e.getMessage());
             } finally {
-                // release service usage
                 ctx.ungetService(ref);
             }
         }
-
+        
         // -------------------------
-        // Use-case command index
-        // -------------------------
-        public void uc() {
-            System.out.println("=========== Use Case Commands ===========");
-            System.out.println("Appointment: physio:appt <action> [args]");
-            System.out.println("  actions: send | edit | cancel | view | approve | decline");
-            System.out.println("Therapy: physio:therapy");
-            System.out.println("  actions: (put 1 action for each use case/test case/however u develop)");
-            System.out.println("Journal: physio:journal");
-            System.out.println("  actions: (put 1 action for each use case/test case/however u develop)");
-            System.out.println("Summary: physio:summary");
-            System.out.println("  actions: (put 1 action for each use case/test case/however u develop)");
-            System.out.println("Progress: physio:progress");
-            System.out.println("  actions: (put 1 action for each use case/test case/however u develop)");
-            System.out.println("User Management: physio:user");
-            System.out.println("  actions: (put 1 action for each use case/test case/however u develop)");
-            System.out.println("Personal Info: physio:personal");
-            System.out.println("  actions: (put 1 action for each use case/test case/however u develop)");
-            System.out.println("First-time Screening Test: physio:testuc");
-            System.out.println("  actions: (put 1 action for each use case/test case/however u develop)");
-            System.out.println("=========================================");
-        }
-
-        // -------------------------
-        // Appointment module templates (UC15/16/17/18/24 style)
+        // Appointment module CLI (UC15/16/17/18/24)
         // -------------------------
         public void appt(String action, String... args) {
             String a = (action == null) ? "" : action.trim().toLowerCase();
 
             switch (a) {
-                case "send" -> {
-                    // Template: UC15 send booking request
-                    System.out.println("[UC15] Send Booking Request (template)");
-                    System.out.println("Expected args: <patientEmail> <physioEmail> <yyyy-mm-dd> <hh:mm> <reason>");
-                    System.out.println("Example: physio:appt send p@x.com t@x.com 2026-01-20 10:30 \"knee pain\"");
-                    // TODO: AppointmentService.sendBookingRequest(...)
-                }
-                case "edit" -> {
-                    // Template: UC16 send edit request
-                    System.out.println("[UC16] Send Edit Request (template)");
-                    System.out.println("Expected args: <requestId> <newDate> <newTime> <newReason>");
-                    System.out.println("Example: physio:appt edit REQ-001 2026-01-21 11:00 \"reschedule\"");
-                    // TODO: AppointmentService.sendEditRequest(...)
-                }
-                case "cancel" -> {
-                    // Template: UC17 send cancel request
-                    System.out.println("[UC17] Send Cancel Request (template)");
-                    System.out.println("Expected args: <requestId> <reason>");
-                    System.out.println("Example: physio:appt cancel REQ-001 \"cannot attend\"");
-                    // TODO: AppointmentService.sendCancelRequest(...)
-                }
-                case "view" -> {
-                    // Template: UC18 view appointment schedule
-                    System.out.println("[UC18] View Appointment Schedule (template)");
-                    System.out.println("Expected args: <userEmail> [yyyy-mm-dd]");
-                    System.out.println("Example: physio:appt view p@x.com 2026-01-20");
-                    // TODO: AppointmentService.viewSchedule(...)
-                }
-                case "approve" -> {
-                    // Template: UC24 admin approves request
-                    System.out.println("[UC24] Admin Approve Request (template)");
-                    System.out.println("Expected args: <adminEmail> <requestId>");
-                    System.out.println("Example: physio:appt approve admin@x.com REQ-001");
-                    // TODO: AppointmentService.approveRequest(...)
-                }
-                case "decline" -> {
-                    // Template: UC24 admin declines request
-                    System.out.println("[UC24] Admin Decline Request (template)");
-                    System.out.println("Expected args: <adminEmail> <requestId> <reason>");
-                    System.out.println("Example: physio:appt decline admin@x.com REQ-001 \"slot unavailable\"");
-                    // TODO: AppointmentService.declineRequest(...)
-                }
+
+                // UC15 - patient booking request
+                case "send" -> withService(AppointmentService.class, svc -> {
+                    if (args.length < 5) {
+                        System.out.println("[UC15] Usage: physio:appt send <patientId> <physioId> <yyyy-mm-dd> <hh:mm> <details>");
+                        System.out.println("Example: physio:appt send 4 2 2026-01-20 10:30 \"knee pain\"");
+                        return;
+                    }
+                    Long patientId = parseLong(args[0], "patientId");
+                    Long physioId = parseLong(args[1], "physioId");
+                    LocalDateTime dt = parseDateTime(args[2], args[3]);
+                    String details = joinFrom(args, 4);
+
+                    Appointment created = svc.createBookingRequest(patientId, physioId, dt, details);
+                    System.out.println("[UC15] Created booking request: " + formatAppointment(created));
+                });
+
+                // UC16 - patient edit request
+                case "edit" -> withService(AppointmentService.class, svc -> {
+                    if (args.length < 5) {
+                        System.out.println("[UC16] Usage: physio:appt edit <patientId> <targetAppointmentId> <yyyy-mm-dd> <hh:mm> <newDetails>");
+                        System.out.println("Example: physio:appt edit 4 1 2026-01-21 11:00 \"reschedule\"");
+                        return;
+                    }
+                    Long patientId = parseLong(args[0], "patientId");
+                    Long targetId = parseLong(args[1], "targetAppointmentId");
+                    LocalDateTime dt = parseDateTime(args[2], args[3]);
+                    String newDetails = joinFrom(args, 4);
+
+                    Appointment created = svc.createUpdateRequest(patientId, targetId, dt, newDetails);
+                    System.out.println("[UC16] Created update request: " + formatAppointment(created));
+                });
+
+                // UC17 - patient cancel request
+                case "cancel" -> withService(AppointmentService.class, svc -> {
+                    if (args.length < 2) {
+                        System.out.println("[UC17] Usage: physio:appt cancel <patientId> <targetAppointmentId>");
+                        System.out.println("Example: physio:appt cancel 4 1");
+                        return;
+                    }
+                    Long patientId = parseLong(args[0], "patientId");
+                    Long targetId = parseLong(args[1], "targetAppointmentId");
+
+                    Appointment created = svc.createCancelRequest(patientId, targetId);
+                    System.out.println("[UC17] Created cancel request: " + formatAppointment(created));
+                });
+
+                // UC18 - physio view schedule (approved appointments between dates)
+                case "view" -> withService(ScheduleService.class, sched -> {
+                    if (args.length < 3) {
+                        System.out.println("[UC18] Usage: physio:appt view <physioId> <fromDate yyyy-mm-dd> <toDate yyyy-mm-dd>");
+                        System.out.println("Example: physio:appt view 2 2026-01-01 2026-01-31");
+                        return;
+                    }
+                    Long physioId = parseLong(args[0], "physioId");
+                    LocalDate from = parseDate(args[1], "fromDate");
+                    LocalDate to = parseDate(args[2], "toDate");
+
+                    LocalDateTime fromDt = from.atStartOfDay();
+                    LocalDateTime toDt = to.atTime(LocalTime.MAX);
+
+                    List<Appointment> appts = sched.getScheduleForPhysio(physioId, fromDt, toDt);
+                    System.out.println("[UC18] Approved schedule for physioId=" + physioId + " (" + appts.size() + " items)");
+                    appts.forEach(x -> System.out.println("  - " + formatAppointment(x)));
+                });
+
+                // helper: list pending requests by type (useful for UC24 admin)
+                case "pending" -> withService(AppointmentService.class, svc -> {
+                    if (args.length < 1) {
+                        System.out.println("Usage: physio:appt pending <new|update|cancel>");
+                        return;
+                    }
+                    String type = args[0].trim().toLowerCase();
+                    List<Appointment> pending;
+                    switch (type) {
+                        case "new" -> pending = svc.listPendingNewRequests();
+                        case "update" -> pending = svc.listPendingUpdateRequests();
+                        case "cancel" -> pending = svc.listPendingCancelRequests();
+                        default -> {
+                            System.out.println("Unknown type: " + args[0] + " (use new|update|cancel)");
+                            return;
+                        }
+                    }
+                    System.out.println("[PENDING] " + type.toUpperCase() + " requests: " + pending.size());
+                    pending.forEach(x -> System.out.println("  - " + formatAppointment(x)));
+                });
+
+                // UC24 - admin approve request
+                case "approve" -> withService(AppointmentService.class, svc -> {
+                    if (args.length < 1) {
+                        System.out.println("[UC24] Usage: physio:appt approve <requestId>");
+                        System.out.println("Example: physio:appt approve 1");
+                        return;
+                    }
+                    Long requestId = parseLong(args[0], "requestId");
+                    Appointment updated = svc.approveRequest(requestId);
+                    System.out.println("[UC24] Approved request: " + formatAppointment(updated));
+                });
+
+                // UC24 - admin reject request (REJECT not DECLINE)
+                case "reject" -> withService(AppointmentService.class, svc -> {
+                    if (args.length < 1) {
+                        System.out.println("[UC24] Usage: physio:appt reject <requestId>");
+                        System.out.println("Example: physio:appt reject 1");
+                        return;
+                    }
+                    Long requestId = parseLong(args[0], "requestId");
+                    Appointment updated = svc.rejectRequest(requestId);
+                    System.out.println("[UC24] Rejected request: " + formatAppointment(updated));
+                });
+
                 default -> {
                     System.out.println("Unknown appointment action: " + action);
-                    System.out.println("Try: physio:appt send|edit|cancel|view|approve|decline");
+                    System.out.println("Try: physio:appt send|edit|cancel|view|pending|approve|reject");
                 }
             }
         }
@@ -222,37 +271,119 @@ public class Activator implements BundleActivator {
         // -------------------------
         public void therapy(String... args) {
             System.out.println("[TODO] Therapy module CLI not implemented yet.");
-            // TODO: Implement therapy commands + call TherapyService methods
         }
 
         public void journal(String... args) {
             System.out.println("[TODO] Journal module CLI not implemented yet.");
-            // TODO: Implement journal commands + call JournalService methods
         }
 
         public void summary(String... args) {
             System.out.println("[TODO] Summary module CLI not implemented yet.");
-            // TODO: Implement summary commands + call SummaryService methods
         }
 
         public void progress(String... args) {
             System.out.println("[TODO] Progress-Tracking module CLI not implemented yet.");
-            // TODO: Implement progress commands + call ProgressTrackingService methods
         }
 
         public void user(String... args) {
             System.out.println("[TODO] User-Management module CLI not implemented yet.");
-            // TODO: Implement user commands + call UserManagementService methods
         }
 
         public void personal(String... args) {
             System.out.println("[TODO] Personal-Info module CLI not implemented yet.");
-            // TODO: Implement personal commands + call PersonalInfoService methods
         }
 
         public void testuc(String... args) {
             System.out.println("[TODO] Test module CLI not implemented yet.");
-            // TODO: Implement test commands + call TestService methods
+        }
+
+        // -------------------------
+        // Helpers
+        // -------------------------
+        private <T> void withService(Class<T> clazz, ServiceConsumer<T> consumer) {
+            if (ctx == null) {
+                System.out.println("ERROR: BundleContext not available.");
+                return;
+            }
+            ServiceReference<T> ref = ctx.getServiceReference(clazz);
+            if (ref == null) {
+                System.out.println("Service not available: " + clazz.getSimpleName() + " (start the *-impl bundle)");
+                return;
+            }
+            T svc = ctx.getService(ref);
+            if (svc == null) {
+                System.out.println("Service instance null: " + clazz.getSimpleName());
+                return;
+            }
+
+            try {
+                consumer.accept(svc);
+            } catch (IllegalArgumentException ex) {
+                System.out.println("ERROR: " + ex.getMessage());
+            } catch (Exception ex) {
+                System.out.println("ERROR: " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+            } finally {
+                ctx.ungetService(ref);
+            }
+        }
+
+        @FunctionalInterface
+        private interface ServiceConsumer<T> {
+            void accept(T svc);
+        }
+
+        private Long parseLong(String s, String field) {
+            try {
+                return Long.parseLong(s.trim());
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid " + field + ": " + s);
+            }
+        }
+
+        private LocalDate parseDate(String s, String field) {
+            try {
+                return LocalDate.parse(s.trim());
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid " + field + " (expected yyyy-mm-dd): " + s);
+            }
+        }
+
+        private LocalDateTime parseDateTime(String date, String time) {
+            try {
+                LocalDate d = LocalDate.parse(date.trim());
+                LocalTime t = LocalTime.parse(time.trim());
+                return LocalDateTime.of(d, t);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid date/time (expected yyyy-mm-dd hh:mm): " + date + " " + time);
+            }
+        }
+
+        private String joinFrom(String[] args, int start) {
+            if (args.length <= start) return "";
+            StringBuilder sb = new StringBuilder();
+            for (int i = start; i < args.length; i++) {
+                if (i > start) sb.append(' ');
+                sb.append(args[i]);
+            }
+            return sb.toString().trim();
+        }
+
+        private String formatAppointment(Appointment a) {
+            if (a == null) return "(null)";
+            // keep formatting robust even if some getters not present
+            try {
+                Long id = a.getId();
+                return "id=" + id
+                        + " type=" + a.getRequestType()
+                        + " status=" + a.getStatus()
+                        + " patientId=" + a.getPatientId()
+                        + " physioId=" + a.getPhysioId()
+                        + " dateTime=" + a.getDateTime()
+                        + (a.getTargetAppointmentId() != null ? " targetId=" + a.getTargetAppointmentId() : "")
+                        + (a.getDetails() != null ? " details=\"" + a.getDetails() + "\"" : "");
+            } catch (Exception e) {
+                return a.toString();
+            }
         }
     }
 }

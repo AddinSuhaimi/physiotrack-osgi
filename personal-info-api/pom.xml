@@ -38,7 +38,7 @@
         <configuration>
           <instructions>
             <Bundle-SymbolicName>com.physiotrack.personal-info.api</Bundle-SymbolicName>
-            <Export-Package>com.physiotrack.personal.info.api</Export-Package>
+            <Export-Package>com.physiotrack.personal.info.api.*</Export-Package>
             <Import-Package>*</Import-Package>
           </instructions>
         </configuration>
