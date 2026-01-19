@@ -13,10 +13,14 @@ public interface UserManagementService {
     User createUser(String username, String email, String role, String clinicName);
     User findByEmail(String email);
     User findById(Long id);
+    User updateUser(User user);
 
     List<User> listAll();
     List<User> listByRole(String role);
+    List<User> findPatientsByPhysioId(Long physioId);
 
     boolean deactivate(String email);
     boolean reactivate(String email);
+    boolean assignPatientToPhysio(Long patientId, Long physioId);
+    boolean updateSharedJournalStatus(Long userId, boolean isShared);
 }
