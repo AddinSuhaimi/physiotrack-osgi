@@ -4,6 +4,7 @@ import com.physiotrack.appointment.api.AppointmentService;
 import com.physiotrack.appointment.api.ScheduleService;
 import com.physiotrack.appointment.api.model.Appointment;
 import com.physiotrack.journal.api.JournalService;
+import com.physiotrack.journal.api.model.Journal;
 import com.physiotrack.personal.info.api.PersonalInfoService;
 import com.physiotrack.progress.tracking.api.ProgressTrackingService;
 import com.physiotrack.summary.api.SummaryService;
@@ -274,7 +275,102 @@ public class Activator implements BundleActivator {
         }
 
         public void journal(String... args) {
-            System.out.println("[TODO] Journal module CLI not implemented yet.");
+            String action = (args.length > 0 && args[0] != null) ? args[0].trim().toLowerCase() : "";
+
+            switch (action) {
+                case "create" -> withService(JournalService.class, svc -> {
+                    if (args.length < 3) {
+                        System.out.println("Usage: physio:journal create <patientId> <title> [comment]");
+                        return;
+                    }
+                    Long patientId = parseLong(args[1], "patientId");
+                    String title = args[2];
+                    String comment = args.length > 3 ? joinFrom(args, 3) : "";
+
+                    Journal j = new Journal();
+                    j.setTitle(title);
+                    j.setComment(comment);
+
+                    Journal created = svc.createJournal(patientId, j);
+                    System.out.println("Created journal: " + formatJournal(created));
+                });
+
+                case "view" -> withService(JournalService.class, svc -> {
+                    if (args.length < 2) {
+                        System.out.println("Usage: physio:journal view <journalId>");
+                        return;
+                    }
+                    Long id = parseLong(args[1], "journalId");
+                    Journal j = svc.getJournalById(id);
+                    System.out.println(formatJournal(j));
+                });
+
+                case "list" -> withService(JournalService.class, svc -> {
+                    if (args.length < 2) {
+                        System.out.println("Usage: physio:journal list <patientId>");
+                        return;
+                    }
+                    Long patientId = parseLong(args[1], "patientId");
+                    svc.listJournalsForPatient(patientId).forEach(x -> System.out.println("  - " + formatJournal(x)));
+                });
+
+                case "edit" -> withService(JournalService.class, svc -> {
+                    if (args.length < 4) {
+                        System.out.println("Usage: physio:journal edit <patientId> <journalId> <newTitle> [newComment]");
+                        return;
+                    }
+                    Long patientId = parseLong(args[1], "patientId");
+                    Long journalId = parseLong(args[2], "journalId");
+                    String newTitle = args[3];
+                    String newComment = args.length > 4 ? joinFrom(args, 4) : null;
+
+                    Journal upd = new Journal();
+                    upd.setTitle(newTitle);
+                    if (newComment != null) upd.setComment(newComment);
+
+                    Journal out = svc.updateJournal(patientId, journalId, upd);
+                    System.out.println("Updated: " + formatJournal(out));
+                });
+
+                case "delete" -> withService(JournalService.class, svc -> {
+                    if (args.length < 3) {
+                        System.out.println("Usage: physio:journal delete <patientId> <journalId>");
+                        return;
+                    }
+                    Long patientId = parseLong(args[1], "patientId");
+                    Long journalId = parseLong(args[2], "journalId");
+                    boolean ok = svc.deleteJournal(patientId, journalId);
+                    System.out.println(ok ? "Deleted" : "Delete failed");
+                });
+
+                case "share" -> withService(JournalService.class, svc -> {
+                    if (args.length < 3) {
+                        System.out.println("Usage: physio:journal share <journalId> <true|false>");
+                        return;
+                    }
+                    Long journalId = parseLong(args[1], "journalId");
+                    boolean share = Boolean.parseBoolean(args[2]);
+                    Journal out = svc.setSharePermission(journalId, share);
+                    System.out.println("Updated share: " + (out != null && out.isSharedWithPhysio()));
+                });
+
+                case "" -> System.out.println("Usage: physio:journal <create|view|list|edit|delete|share> ...");
+
+                default -> System.out.println("Unknown journal action: " + action);
+            }
+        }
+
+        private String formatJournal(Journal j) {
+            if (j == null) return "(null)";
+            try {
+                return "id=" + j.getId()
+                        + " patientId=" + j.getPatientId()
+                        + " title=\"" + (j.getTitle() == null ? "" : j.getTitle()) + "\""
+                        + (j.getComment() != null ? " comment=\"" + j.getComment() + "\"" : "")
+                        + " shared=" + j.isSharedWithPhysio();
+            } catch (Exception e) {
+                return j.toString();
+            }
         }
 
         public void summary(String... args) {
@@ -322,6 +418,7 @@ public class Activator implements BundleActivator {
                 System.out.println("ERROR: " + ex.getMessage());
             } catch (Exception ex) {
                 System.out.println("ERROR: " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+                ex.printStackTrace(System.out);
             } finally {
                 ctx.ungetService(ref);
             }

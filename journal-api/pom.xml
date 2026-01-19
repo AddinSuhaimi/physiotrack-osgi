@@ -36,10 +36,11 @@
           </execution>
         </executions>
         <configuration>
-          <instructions>
+            <instructions>
             <Bundle-SymbolicName>com.physiotrack.journal.api</Bundle-SymbolicName>
             <Export-Package>com.physiotrack.journal.api.*</Export-Package>
-            <Import-Package>*</Import-Package>
+            <!-- Don't import the model package from elsewhere; export it from this bundle -->
+            <Import-Package>!com.physiotrack.journal.api.model, *</Import-Package>
           </instructions>
         </configuration>
       </plugin>
