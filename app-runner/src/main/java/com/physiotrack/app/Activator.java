@@ -1,5 +1,17 @@
 package com.physiotrack.app;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Dictionary;
+import java.util.Hashtable;
+import java.util.List;
+
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
+import org.osgi.framework.ServiceRegistration;
+
 import com.physiotrack.appointment.api.AppointmentService;
 import com.physiotrack.appointment.api.ScheduleService;
 import com.physiotrack.appointment.api.model.Appointment;
@@ -7,22 +19,12 @@ import com.physiotrack.journal.api.JournalService;
 import com.physiotrack.personal.info.api.PersonalInfoService;
 import com.physiotrack.progress.tracking.api.ProgressTrackingService;
 import com.physiotrack.summary.api.SummaryService;
+import com.physiotrack.test.api.TestManageService;
+import com.physiotrack.test.api.TestService;
+import com.physiotrack.test.api.model.Question;
 import com.physiotrack.therapy.api.TherapyService;
 import com.physiotrack.user.management.api.UserManagementService;
 import com.physiotrack.user.management.api.model.User;
-import com.physiotrack.test.api.TestService;
-
-import org.osgi.framework.BundleActivator;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.ServiceReference;
-import org.osgi.framework.ServiceRegistration;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Dictionary;
-import java.util.Hashtable;
-import java.util.List;
 
 public class Activator implements BundleActivator {
 
@@ -39,7 +41,7 @@ public class Activator implements BundleActivator {
         props.put("osgi.command.function", new String[] {
                 "menu", "help", "ping", "pingall",
                 "uc",
-                "appt", "therapy", "journal", "summary", "progress", "user", "personal", "testuc"
+                "appt", "therapy", "journal", "summary", "progress", "user", "personal", "test"
         });
 
         reg = context.registerService(Object.class.getName(), new PhysioCommands(), props);
@@ -82,7 +84,7 @@ public class Activator implements BundleActivator {
             System.out.println("  physio:user deactivate <email>");
             System.out.println("  physio:personal update <userId> <address> <phone>");
             System.out.println("  physio:personal lang <userId> <langCode>");
-            System.out.println("  physio:testuc    (TODO)");
+            System.out.println("  physio:test   <evaluate|questionlist|add|edit|remove> [args]");
             System.out.println("==========================================");
         }
 
@@ -101,7 +103,10 @@ public class Activator implements BundleActivator {
                 case "progress", "progress-tracking" -> pingService("Progress-Tracking", ProgressTrackingService.class);
                 case "user", "user-management" -> pingService("User-Management", UserManagementService.class);
                 case "personal", "personal-info" -> pingService("Personal-Info", PersonalInfoService.class);
-                case "test" -> pingService("Test", TestService.class);
+                case "test" -> {
+                    pingService("Test", TestService.class);
+                    pingService("TestManage", TestManageService.class);
+                }
                 default -> {
                     System.out.println("Unknown module: " + module);
                     System.out.println("Try: physio:ping appointment|therapy|journal|summary|progress|user|personal|test");
@@ -118,6 +123,7 @@ public class Activator implements BundleActivator {
             pingService("User-Management", UserManagementService.class);
             pingService("Personal-Info", PersonalInfoService.class);
             pingService("Test", TestService.class);
+            pingService("TestManage", TestManageService.class);
         }
 
         private <T> void pingService(String label, Class<T> clazz) {
@@ -402,9 +408,87 @@ public class Activator implements BundleActivator {
             });
         }
 
-        public void testuc(String... args) {
-            System.out.println("[TODO] Test module CLI not implemented yet.");
+        public void test(String action, String... args) {
+            String act = (action == null) ? "" : action.trim().toLowerCase();
+
+            switch (act) {
+                case "evaluate" -> withService(TestService.class, svc -> {
+                    List<Question> questions = svc.getScrenningTestQuestions();
+                    if (args.length < questions.size()) {
+                        System.out.println("Usage: physio:test evaluate <answer1> <answer2> ... <answer" + questions.size() + ">");
+                        return;
+                    }
+                    List<String> answers = java.util.Arrays.asList(args).subList(0, questions.size());
+                    int score = svc.evaluate(answers);
+                    System.out.println("Screening test completed. Score: " + score);
+                });
+
+                case "questionlist" -> withService(TestManageService.class, svc -> {
+                    List<Question> questions = svc.getQuestionList();
+                    System.out.println("Questions :");
+                    for (int i = 0; i < questions.size(); i++) {
+                        Question question = questions.get(i);
+                        System.out.println(" " + (i+1) + ". " + question.getQuestionDesc());
+                    }
+                });
+
+                case "add" -> withService(TestManageService.class, svc -> {
+                    if (args.length < 3) {
+                        System.out.println("Usage: physio:test add <desc> <category> <correctAnswer>");
+                        return;
+                    }
+                    Question q =new Question(args[0], args[1], args[2]);
+                    svc.addQuestion(q);
+                    System.out.println("Added question: " + q.getQuestionDesc());
+                });
+
+                case "edit" -> withService(TestManageService.class, svc -> {
+                    if (args.length < 4) {
+                        System.out.println("Usage: physio:test edit <index> <desc> <category> <correctAnswer>");
+                        return;
+                    }
+                    try {
+                        int index = Integer.parseInt(args[0]) - 1;
+                        List<Question> questions = svc.getQuestionList();
+                        if (index < 0 || index >= questions.size()) {
+                            System.out.println("Invalid question index: " + (index + 1));
+                            return;
+                        }
+                        Question q = questions.get(index);
+                        q.setQuestionDesc(args[1]);
+                        q.setQuestionCat(args[2]);
+                        q.setQuestionAns(args[3]);
+                        svc.editQuestion(q);
+                        System.out.println("Edited question at index " + (index + 1) + ": " + q.getQuestionDesc());
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid index: " + args[0]);
+                    }
+                });
+
+                case "remove" -> withService(TestManageService.class, svc -> {
+                    if (args.length < 1) {
+                        System.out.println("Usage: physio:test remove <index>");
+                        return;
+                    }
+                    try {
+                        int index = Integer.parseInt(args[0]) - 1;
+                        List<Question> questions = svc.getQuestionList();
+                        if (index < 0 || index >= questions.size()) {
+                            System.out.println("Invalid question index: " + (index + 1));
+                            return;
+                        }
+                        Question q = questions.get(index);
+                        svc.removeQuestion(q);
+                        System.out.println("Removed question at index " + (index + 1) + ": " + q.getQuestionDesc());
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid index: " + args[0]);
+                    }
+                });
+
+                default -> System.out.println("Unknown test action: evaluate|questionlist|add|edit|remove");
+            }
         }
+
 
         // -------------------------
         // Helpers
