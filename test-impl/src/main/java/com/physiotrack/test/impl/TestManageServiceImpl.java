@@ -1,13 +1,13 @@
 package com.physiotrack.test.impl;
 
+import java.util.List;
+
 import com.physiotrack.test.api.TestManageService;
 import com.physiotrack.test.api.model.Question;
 import com.physiotrack.test.api.model.Test;
 import com.physiotrack.test.api.model.TestType;
-import com.physiotrack.test.impl.Repository.TestRepository;
 import com.physiotrack.test.impl.Repository.QuestionRepository;
-
-import java.util.List;
+import com.physiotrack.test.impl.Repository.TestRepository;
 
 public class TestManageServiceImpl implements TestManageService {
 
@@ -40,22 +40,27 @@ public class TestManageServiceImpl implements TestManageService {
     }
 
     @Override
-    public void addQuestion(Question question) {
-        if (question == null) {
-            throw new IllegalArgumentException("Question cannot be null");
-        }
+    public Question addQuestion(String questionDesc, String questionCat, String questionAns) {
+        Question question = new Question();
+        question.setQuestionDesc(questionDesc);
+        question.setQuestionCat(questionCat);
+        question.setQuestionAns(questionAns);
+
         questionRepository.save(question);
         screeningTest.addQuestion(question);
         testRepository.save(screeningTest);
+        return question;
     }
 
     @Override
-    public void editQuestion(Question question) {
+    public Question editQuestion(Question question) {
         if (question == null || question.getQuestionId() == null) {
             throw new IllegalArgumentException("Question or Question ID cannot be null");
         }
         screeningTest.updateQuestion(question);
         testRepository.save(screeningTest);
+
+        return question;
     }
 
     @Override

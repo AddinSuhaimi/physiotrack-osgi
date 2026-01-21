@@ -437,29 +437,55 @@ public class Activator implements BundleActivator {
                         System.out.println("Usage: physio:test add <desc> <category> <correctAnswer>");
                         return;
                     }
-                    Question q =new Question(args[0], args[1], args[2]);
-                    svc.addQuestion(q);
-                    System.out.println("Added question: " + q.getQuestionDesc());
+                    
+                    Question question = svc.addQuestion(args[0], args[1], args[2]);
+                    System.out.println("Question added successfully:");
+                    System.out.println("ID       : " + question.getQuestionId());
+                    System.out.println("Desc     : " + question.getQuestionDesc());
+                    System.out.println("Category : " + question.getQuestionCat());
+                    System.out.println("Answer   : " + question.getQuestionAns());
                 });
 
                 case "edit" -> withService(TestManageService.class, svc -> {
                     if (args.length < 4) {
-                        System.out.println("Usage: physio:test edit <index> <desc> <category> <correctAnswer>");
+                        System.out.println(
+                            "Usage: physio:test edit <index> <desc|-> <category|-> <correctAnswer|->"
+                        );
+                        System.out.println("Use '-' to keep the current value.");
                         return;
                     }
+
                     try {
                         int index = Integer.parseInt(args[0]) - 1;
                         List<Question> questions = svc.getQuestionList();
+
                         if (index < 0 || index >= questions.size()) {
                             System.out.println("Invalid question index: " + (index + 1));
                             return;
                         }
+
                         Question q = questions.get(index);
-                        q.setQuestionDesc(args[1]);
-                        q.setQuestionCat(args[2]);
-                        q.setQuestionAns(args[3]);
-                        svc.editQuestion(q);
-                        System.out.println("Edited question at index " + (index + 1) + ": " + q.getQuestionDesc());
+
+                        // Only update fields if user does NOT enter "-"
+                        if (!args[1].equals("-")) {
+                            q.setQuestionDesc(args[1]);
+                        }
+
+                        if (!args[2].equals("-")) {
+                            q.setQuestionCat(args[2]);
+                        }
+
+                        if (!args[3].equals("-")) {
+                            q.setQuestionAns(args[3]);
+                        }
+
+                        Question questionEdited = svc.editQuestion(q);
+
+                        System.out.println("Edited question at index " + (index + 1));
+                        System.out.println("Description : " + questionEdited.getQuestionDesc());
+                        System.out.println("Category    : " + questionEdited.getQuestionCat());
+                        System.out.println("Answer      : " + questionEdited.getQuestionAns());
+
                     } catch (NumberFormatException e) {
                         System.out.println("Invalid index: " + args[0]);
                     }
