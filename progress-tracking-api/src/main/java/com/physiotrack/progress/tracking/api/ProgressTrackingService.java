@@ -1,7 +1,6 @@
 package com.physiotrack.progress.tracking.api;
 
 import java.util.List;
-import java.util.Optional;
 
 import com.physiotrack.progress.tracking.api.model.TreatmentReport;
 

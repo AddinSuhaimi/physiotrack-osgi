@@ -74,7 +74,7 @@ public class Activator implements BundleActivator {
             System.out.println("  physio:therapy   (TODO)");
             System.out.println("  physio:journal   (TODO)");
             System.out.println("  physio:summary   (TODO)");
-            System.out.println("  physio:progress  <details|reports|create> [args]");
+            System.out.println("  physio:progress  <patients|details|reports|create> [args]");
             System.out.println("  physio:user create <username> <email> <role> [clinic]");
             System.out.println("  physio:user list");
             System.out.println("  physio:user role <role>");
@@ -293,6 +293,22 @@ public class Activator implements BundleActivator {
             String a = (action == null) ? "" : action.trim().toLowerCase();
 
             switch (a) {
+                case "patients" -> withService(UserManagementService.class, userSvc -> {
+                    List<User> patients = userSvc.listByRole("PATIENT");
+
+                    if (patients == null || patients.isEmpty()) {
+                        System.out.println("No patients found.");
+                        return;
+                    }
+
+                    System.out.println("\n[Patients]");
+                    for (User patient : patients) {
+                        System.out.println("ID   : " + patient.getId());
+                        System.out.println("Name : " + patient.getUsername());
+                        System.out.println("----------------------");
+                    }           
+                });
+
                 // View Patient Details
                 case "details" -> withService(UserManagementService.class, userSvc -> {
                     if (args.length < 1) {
@@ -314,7 +330,8 @@ public class Activator implements BundleActivator {
                     System.out.println("Phone: " + patient.getPhone());
                     System.out.println("Address: " + patient.getAddress());
                     System.out.println("Language Preference: " + patient.getLanguage());
-                    System.out.println("Active: " + patient.isActive());                });
+                    System.out.println("Active: " + patient.isActive());                
+                });
 
                 // View Progress Reports
                 case "reports" -> withService(ProgressTrackingService.class, progSvc -> {
@@ -373,6 +390,7 @@ public class Activator implements BundleActivator {
                 default -> {
                     System.out.println("Unknown progress command.");
                     System.out.println("Try:");
+                    System.out.println("  physio:progress patients");
                     System.out.println("  physio:progress details <patientId>");
                     System.out.println("  physio:progress reports <patientId>");
                     System.out.println("  physio:progress create <patientId> <title> <type> <activity> <performance>");
