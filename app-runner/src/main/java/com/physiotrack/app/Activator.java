@@ -18,6 +18,7 @@ import com.physiotrack.appointment.api.model.Appointment;
 import com.physiotrack.journal.api.JournalService;
 import com.physiotrack.personal.info.api.PersonalInfoService;
 import com.physiotrack.progress.tracking.api.ProgressTrackingService;
+import com.physiotrack.progress.tracking.api.model.TreatmentReport;
 import com.physiotrack.summary.api.SummaryService;
 import com.physiotrack.test.api.TestManageService;
 import com.physiotrack.test.api.TestService;
@@ -75,7 +76,7 @@ public class Activator implements BundleActivator {
             System.out.println("  physio:therapy   (TODO)");
             System.out.println("  physio:journal   (TODO)");
             System.out.println("  physio:summary   (TODO)");
-            System.out.println("  physio:progress  (TODO)");
+            System.out.println("  physio:progress  <patients|details|reports|create> [args]");
             System.out.println("  physio:user create <username> <email> <role> [clinic]");
             System.out.println("  physio:user list");
             System.out.println("  physio:user role <role>");
@@ -294,9 +295,115 @@ public class Activator implements BundleActivator {
             System.out.println("[TODO] Summary module CLI not implemented yet.");
         }
 
-        public void progress(String... args) {
-            System.out.println("[TODO] Progress-Tracking module CLI not implemented yet.");
+        public void progress(String action, String... args) {
+            String a = (action == null) ? "" : action.trim().toLowerCase();
+
+            switch (a) {
+                case "patients" -> withService(UserManagementService.class, userSvc -> {
+                    List<User> patients = userSvc.listByRole("PATIENT");
+
+                    if (patients == null || patients.isEmpty()) {
+                        System.out.println("No patients found.");
+                        return;
+                    }
+
+                    System.out.println("\n[Patients]");
+                    for (User patient : patients) {
+                        System.out.println("ID   : " + patient.getId());
+                        System.out.println("Name : " + patient.getUsername());
+                        System.out.println("----------------------");
+                    }           
+                });
+
+                // View Patient Details
+                case "details" -> withService(UserManagementService.class, userSvc -> {
+                    if (args.length < 1) {
+                        System.out.println("Usage: physio:progress details <patientId>");
+                        return;
+                    }
+                    Long patientId = parseLong(args[0], "patientId");
+                    User patient = userSvc.findById(patientId);
+
+                    if (patient == null) {
+                        System.out.println("Patient not found.");
+                        return;
+                    }
+
+                    System.out.println("\n[Patient Details Information]");
+                    System.out.println("ID: " + patient.getId());
+                    System.out.println("Username: " + patient.getUsername());
+                    System.out.println("Email: " + patient.getEmail());
+                    System.out.println("Phone: " + patient.getPhone());
+                    System.out.println("Address: " + patient.getAddress());
+                    System.out.println("Language Preference: " + patient.getLanguage());
+                    System.out.println("Active: " + patient.isActive());                
+                });
+
+                // View Progress Reports
+                case "reports" -> withService(ProgressTrackingService.class, progSvc -> {
+                    if (args.length < 1) {
+                        System.out.println("Usage: physio:progress reports <patientId>");
+                        return;
+                    }
+                    Long patientId = parseLong(args[0], "patientId");
+
+                    System.out.println("\n[Patient Progress Reports]");
+
+                    List<TreatmentReport> reports = progSvc.getPatientReports(patientId);
+
+                    if (reports == null || reports.isEmpty()) {
+                        System.out.println("   -> No reports found for this patient.");
+                        return;
+                    }
+
+                    for (TreatmentReport report : reports) {
+                        System.out.println(
+                                "ID: " + report.getId()
+                                        + " | Title: " + report.getReportTitle()
+                                        + " | Type: " + report.getReportType()
+                                        + " | Activity: " + report.getActivity()
+                                        + " | Performance: " + report.getPerformance()
+                                        + " | Date: " +
+                                        (report.getDateTime() != null ? report.getDateTime() : "(not set)")
+                        );
+                    }                
+                });
+
+                // Create Treatment Report
+                case "create" -> withService(ProgressTrackingService.class, progSvc -> {
+                    if (args.length < 5) {
+                        System.out.println(
+                                "Usage: physio:progress create <patientId> <title> <type> <activity> <performance>");
+                        System.out.println(
+                                "Example: physio:progress create 4 \"Week 1\" Rehab Stretching 85");
+                        return;
+                    }
+
+                    Long patientId = parseLong(args[0], "patientId");
+                    String title = args[1];
+                    String type = args[2];
+                    String activity = args[3];
+                    int performance = Integer.parseInt(args[4]);
+
+                    try {
+                        TreatmentReport report = progSvc.createReport(title, type, performance, activity, patientId);
+                        System.out.println("SUCCESS: Report created with ID " + report.getId());
+                    } catch (Exception e) {
+                        System.out.println("FAILED to create report: " + e.getMessage());
+                    }
+                });
+
+                default -> {
+                    System.out.println("Unknown progress command.");
+                    System.out.println("Try:");
+                    System.out.println("  physio:progress patients");
+                    System.out.println("  physio:progress details <patientId>");
+                    System.out.println("  physio:progress reports <patientId>");
+                    System.out.println("  physio:progress create <patientId> <title> <type> <activity> <performance>");
+                }
+            }
         }
+
 
         // -----------------------------------------------------
         // MODULE 1: USER MANAGEMENT CLI
