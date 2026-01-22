@@ -14,6 +14,7 @@ import com.physiotrack.therapy.api.model.OTProgram;
 import com.physiotrack.therapy.api.model.PTActivity;
 import com.physiotrack.therapy.api.model.PTProgram;
 import com.physiotrack.user.management.api.UserManagementService;
+import com.physiotrack.user.management.api.model.User;
 import com.physiotrack.test.api.TestService;
 
 import org.osgi.framework.BundleActivator;
@@ -78,8 +79,14 @@ public class Activator implements BundleActivator {
             System.out.println("  physio:journal   (TODO)");
             System.out.println("  physio:summary   (TODO)");
             System.out.println("  physio:progress  (TODO)");
-            System.out.println("  physio:user      (TODO)");
-            System.out.println("  physio:personal  (TODO)");
+            System.out.println("  physio:user create <username> <email> <role> [clinic]");
+            System.out.println("  physio:user list");
+            System.out.println("  physio:user role <role>");
+            System.out.println("  physio:user assign <patientId> <physioId>");
+            System.out.println("  physio:user patients <physioId>");
+            System.out.println("  physio:user deactivate <email>");
+            System.out.println("  physio:personal update <userId> <address> <phone>");
+            System.out.println("  physio:personal lang <userId> <langCode>");
             System.out.println("  physio:testuc    (TODO)");
             System.out.println("==========================================");
         }
@@ -479,12 +486,114 @@ public class Activator implements BundleActivator {
             System.out.println("[TODO] Progress-Tracking module CLI not implemented yet.");
         }
 
-        public void user(String... args) {
-            System.out.println("[TODO] User-Management module CLI not implemented yet.");
+        // -----------------------------------------------------
+        // MODULE 1: USER MANAGEMENT CLI
+        // -----------------------------------------------------
+        public void user(String action, String... args) {
+            String a = (action == null) ? "" : action.trim().toLowerCase();
+
+            withService(UserManagementService.class, svc -> {
+                switch (a) {
+                    case "create" -> {
+                        if (args.length < 3) {
+                            System.out.println("Usage: physio:user create <username> <email> <role> [clinic]");
+                            return;
+                        }
+                        String username = args[0];
+                        String email = args[1];
+                        String role = args[2];
+                        String clinic = (args.length > 3) ? joinFrom(args, 3) : null;
+                        User u = svc.createUser(username, email, role, clinic);
+                        System.out.println("Created User: " + formatUser(u));
+                    }
+                    case "list" -> {
+                        List<User> users = svc.listAll();
+                        System.out.println("--- All Users (" + users.size() + ") ---");
+                        users.forEach(u -> System.out.println(formatUser(u)));
+                    }
+                    case "role" -> {
+                        if (args.length < 1) {
+                            System.out.println("Usage: physio:user role <role>");
+                            return;
+                        }
+                        List<User> users = svc.listByRole(args[0]);
+                        System.out.println("--- Users with Role " + args[0] + " ---");
+                        users.forEach(u -> System.out.println(formatUser(u)));
+                    }
+                    case "assign" -> {
+                        if (args.length < 2) {
+                            System.out.println("Usage: physio:user assign <patientId> <physioId>");
+                            return;
+                        }
+                        Long patientId = parseLong(args[0], "patientId");
+                        Long physioId = parseLong(args[1], "physioId");
+                        boolean success = svc.assignPatientToPhysio(patientId, physioId);
+                        System.out.println(success ? "Success: Patient assigned." : "Failed: Invalid IDs or roles.");
+                    }
+                    case "patients" -> {
+                        if (args.length < 1) {
+                            System.out.println("Usage: physio:user patients <physioId>");
+                            return;
+                        }
+                        Long physioId = parseLong(args[0], "physioId");
+                        List<User> patients = svc.findPatientsByPhysioId(physioId);
+                        System.out.println("--- Patients assigned to Physio " + physioId + " ---");
+                        patients.forEach(u -> System.out.println(formatUser(u)));
+                    }
+                    case "deactivate" -> {
+                        if (args.length < 1) {
+                            System.out.println("Usage: physio:user deactivate <email>");
+                            return;
+                        }
+                        boolean success = svc.deactivate(args[0]);
+                        System.out.println(success ? "User deactivated." : "User not found.");
+                    }
+                    default -> System.out.println("Unknown command. Try: create, list, role, assign, patients, deactivate");
+                }
+            });
         }
 
-        public void personal(String... args) {
-            System.out.println("[TODO] Personal-Info module CLI not implemented yet.");
+        // -----------------------------------------------------
+        // MODULE 2: PERSONAL INFO CLI
+        // -----------------------------------------------------
+        public void personal(String action, String... args) {
+            String a = (action == null) ? "" : action.trim().toLowerCase();
+
+            withService(PersonalInfoService.class, svc -> {
+                switch (a) {
+                    case "profile" -> {
+                        if (args.length < 1) {
+                            System.out.println("Usage: physio:personal profile <userId>");
+                            return;
+                        }
+                        Long id = parseLong(args[0], "userId");
+                        User u = svc.getProfile(id);
+                        System.out.println(u != null ? formatUser(u) : "User not found.");
+                    }
+                    case "update" -> {
+                        if (args.length < 3) {
+                            System.out.println("Usage: physio:personal update <userId> <address> <phone>");
+                            return;
+                        }
+                        Long id = parseLong(args[0], "userId");
+                        String addr = args[1];
+                        String phone = args[2];
+                        boolean success = svc.updateProfile(id, addr, phone, null);
+                        System.out.println(success ? "Profile updated." : "Update failed (user not found).");
+                    }
+                    case "lang" -> {
+                        if (args.length < 2) {
+                            System.out.println("Usage: physio:personal lang <userId> <langCode>");
+                            return;
+                        }
+                        Long id = parseLong(args[0], "userId");
+                        String lang = args[1];
+                        boolean success = svc.changeLanguage(id, lang);
+                        System.out.println(success ? "Language changed." : "Update failed.");
+                    }
+                    default -> System.out.println("Unknown command. Try: profile, update, lang");
+                }
+            });
         }
 
         public void testuc(String... args) {
@@ -494,6 +603,13 @@ public class Activator implements BundleActivator {
         // -------------------------
         // Helpers
         // -------------------------
+        private String formatUser(User u) {
+            if (u == null) return "null";
+            return String.format("[ID:%d] %s (%s) | Role:%s | Active:%s | Lang:%s | PhysioID:%s | Addr:%s",
+                    u.getId(), u.getUsername(), u.getEmail(), u.getRole(), u.isActive(),
+                    u.getLanguage(), u.getAssignedPhysioId(), u.getAddress());
+        }
+        
         private <T> void withService(Class<T> clazz, ServiceConsumer<T> consumer) {
             if (ctx == null) {
                 System.out.println("ERROR: BundleContext not available.");
