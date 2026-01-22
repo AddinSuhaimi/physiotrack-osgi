@@ -20,6 +20,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.physiotrack</groupId>
+      <artifactId>user-management-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.osgi</groupId>
       <artifactId>osgi.core</artifactId>
       <version>${osgi.core.version}</version>
