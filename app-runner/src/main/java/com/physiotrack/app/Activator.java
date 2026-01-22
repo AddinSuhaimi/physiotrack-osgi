@@ -166,7 +166,8 @@ public class Activator implements BundleActivator {
                 // UC15 - patient booking request
                 case "send" -> withService(AppointmentService.class, svc -> {
                     if (args.length < 5) {
-                        System.out.println("[UC15] Usage: physio:appt send <patientId> <physioId> <yyyy-mm-dd> <hh:mm> <details>");
+                        System.out.println("Create Appointment Booking Request");
+                        System.out.println("Usage: physio:appt send <patientId> <physioId> <yyyy-mm-dd> <hh:mm> <details>");
                         System.out.println("Example: physio:appt send 4 2 2026-01-20 10:30 \"knee pain\"");
                         return;
                     }
@@ -176,13 +177,14 @@ public class Activator implements BundleActivator {
                     String details = joinFrom(args, 4);
 
                     Appointment created = svc.createBookingRequest(patientId, physioId, dt, details);
-                    System.out.println("[UC15] Created booking request: " + formatAppointment(created));
+                    System.out.println("Created booking request: " + formatAppointment(created));
                 });
 
                 // UC16 - patient edit request
                 case "edit" -> withService(AppointmentService.class, svc -> {
                     if (args.length < 5) {
-                        System.out.println("[UC16] Usage: physio:appt edit <patientId> <targetAppointmentId> <yyyy-mm-dd> <hh:mm> <newDetails>");
+                        System.out.println("Create Appointment Edit Request");
+                        System.out.println("Usage: physio:appt edit <patientId> <targetAppointmentId> <yyyy-mm-dd> <hh:mm> <newDetails>");
                         System.out.println("Example: physio:appt edit 4 1 2026-01-21 11:00 \"reschedule\"");
                         return;
                     }
@@ -192,13 +194,14 @@ public class Activator implements BundleActivator {
                     String newDetails = joinFrom(args, 4);
 
                     Appointment created = svc.createUpdateRequest(patientId, targetId, dt, newDetails);
-                    System.out.println("[UC16] Created update request: " + formatAppointment(created));
+                    System.out.println("Created update request: " + formatAppointment(created));
                 });
 
                 // UC17 - patient cancel request
                 case "cancel" -> withService(AppointmentService.class, svc -> {
                     if (args.length < 2) {
-                        System.out.println("[UC17] Usage: physio:appt cancel <patientId> <targetAppointmentId>");
+                        System.out.println("Create Appointment Cancel Request");
+                        System.out.println("Usage: physio:appt cancel <patientId> <targetAppointmentId>");
                         System.out.println("Example: physio:appt cancel 4 1");
                         return;
                     }
@@ -206,13 +209,14 @@ public class Activator implements BundleActivator {
                     Long targetId = parseLong(args[1], "targetAppointmentId");
 
                     Appointment created = svc.createCancelRequest(patientId, targetId);
-                    System.out.println("[UC17] Created cancel request: " + formatAppointment(created));
+                    System.out.println("Created cancel request: " + formatAppointment(created));
                 });
 
                 // UC18 - physio view schedule (approved appointments between dates)
                 case "view" -> withService(ScheduleService.class, sched -> {
                     if (args.length < 3) {
-                        System.out.println("[UC18] Usage: physio:appt view <physioId> <fromDate yyyy-mm-dd> <toDate yyyy-mm-dd>");
+                        System.out.println("View Physiotherapist's Schedule");
+                        System.out.println("Usage: physio:appt view <physioId> <fromDate yyyy-mm-dd> <toDate yyyy-mm-dd>");
                         System.out.println("Example: physio:appt view 2 2026-01-01 2026-01-31");
                         return;
                     }
@@ -224,7 +228,7 @@ public class Activator implements BundleActivator {
                     LocalDateTime toDt = to.atTime(LocalTime.MAX);
 
                     List<Appointment> appts = sched.getScheduleForPhysio(physioId, fromDt, toDt);
-                    System.out.println("[UC18] Approved schedule for physioId=" + physioId + " (" + appts.size() + " items)");
+                    System.out.println("Approved schedule for physioId=" + physioId + " (" + appts.size() + " items)");
                     appts.forEach(x -> System.out.println("  - " + formatAppointment(x)));
                 });
 
@@ -252,25 +256,27 @@ public class Activator implements BundleActivator {
                 // UC24 - admin approve request
                 case "approve" -> withService(AppointmentService.class, svc -> {
                     if (args.length < 1) {
-                        System.out.println("[UC24] Usage: physio:appt approve <requestId>");
+                        System.out.println("Admin Approve Request");
+                        System.out.println("Usage: physio:appt approve <requestId>");
                         System.out.println("Example: physio:appt approve 1");
                         return;
                     }
                     Long requestId = parseLong(args[0], "requestId");
                     Appointment updated = svc.approveRequest(requestId);
-                    System.out.println("[UC24] Approved request: " + formatAppointment(updated));
+                    System.out.println("Approved request: " + formatAppointment(updated));
                 });
 
-                // UC24 - admin reject request (REJECT not DECLINE)
+                // UC24 - admin reject request (REJECT)
                 case "reject" -> withService(AppointmentService.class, svc -> {
                     if (args.length < 1) {
-                        System.out.println("[UC24] Usage: physio:appt reject <requestId>");
+                        System.out.println("Admin Reject Request");
+                        System.out.println("Usage: physio:appt reject <requestId>");
                         System.out.println("Example: physio:appt reject 1");
                         return;
                     }
                     Long requestId = parseLong(args[0], "requestId");
                     Appointment updated = svc.rejectRequest(requestId);
-                    System.out.println("[UC24] Rejected request: " + formatAppointment(updated));
+                    System.out.println("Rejected request: " + formatAppointment(updated));
                 });
 
                 default -> {
