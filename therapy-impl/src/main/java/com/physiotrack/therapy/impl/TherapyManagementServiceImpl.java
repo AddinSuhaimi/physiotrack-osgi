@@ -3,23 +3,13 @@ package com.physiotrack.therapy.impl;
 import com.physiotrack.therapy.api.TherapyManagementService;
 import com.physiotrack.therapy.api.model.*;
 
-
 import java.util.*;
 
 public class TherapyManagementServiceImpl implements TherapyManagementService {
     // In-memory storage for demo
     private final Map<Long, PTProgram> ptPrograms = new HashMap<>();
     private final Map<Long, OTProgram> otPrograms = new HashMap<>();
-
-    @Override
-    public PTProgram getPTProgramById(Long programId) {
-        return ptPrograms.get(programId);
-    }
-
-    @Override
-    public OTProgram getOTProgramById(Long programId) {
-        return otPrograms.get(programId);
-    }
+    private static long activityCounter = 1;
 
     @Override
     public void saveOTProgram(OTProgram program) {
@@ -43,32 +33,34 @@ public class TherapyManagementServiceImpl implements TherapyManagementService {
     }
 
     @Override
-    public void addPTActivity(Long programId, PTActivity activity) {
-        PTProgram program = ptPrograms.get(programId);
+    public void addPTActivity(Long patientId, PTActivity activity) {
+        PTProgram program = ptPrograms.get(patientId);
         if (program != null) {
+            activity.setId(activityCounter++);
             program.getActivities().add(activity);
         }
     }
 
     @Override
-    public void removePTActivity(Long programId, Long activityId) {
-        PTProgram program = ptPrograms.get(programId);
+    public void removePTActivity(Long patientId, Long activityId) {
+        PTProgram program = ptPrograms.get(patientId);
         if (program != null) {
             program.getActivities().removeIf(a -> Objects.equals(a.getId(), activityId));
         }
     }
 
     @Override
-    public void addOTActivity(Long programId, OTActivity activity) {
-        OTProgram program = otPrograms.get(programId);
+    public void addOTActivity(Long patientId, OTActivity activity) {
+        OTProgram program = otPrograms.get(patientId);
         if (program != null) {
+            activity.setId(activityCounter++);
             program.getActivities().add(activity);
         }
     }
 
     @Override
-    public void removeOTActivity(Long programId, Long activityId) {
-        OTProgram program = otPrograms.get(programId);
+    public void removeOTActivity(Long patientId, Long activityId) {
+        OTProgram program = otPrograms.get(patientId);
         if (program != null) {
             program.getActivities().removeIf(a -> Objects.equals(a.getId(), activityId));
         }

@@ -9,15 +9,12 @@ public interface TherapyManagementService {
     PTProgram findPTProgramByPatientId(Long patientId);
     OTProgram findOTProgramByPatientId(Long patientId);
 
-    PTProgram getPTProgramById(Long programId);
     void savePTProgram(PTProgram program);
-
-    OTProgram getOTProgramById(Long programId);
     void saveOTProgram(OTProgram program);
 
-    void addPTActivity(Long programId, PTActivity activity);
-    void removePTActivity(Long programId, Long activityId);
+    void addPTActivity(Long patientId, PTActivity activity);
+    void removePTActivity(Long patientId, Long activityId);
 
-    void addOTActivity(Long programId, OTActivity activity);
-    void removeOTActivity(Long programId, Long activityId);
+    void addOTActivity(Long patientId, OTActivity activity);
+    void removeOTActivity(Long patientId, Long activityId);
 }

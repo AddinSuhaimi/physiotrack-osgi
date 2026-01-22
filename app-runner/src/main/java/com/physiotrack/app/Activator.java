@@ -75,7 +75,10 @@ public class Activator implements BundleActivator {
             System.out.println();
             System.out.println("Run module commands:");
             System.out.println("  physio:appt <send|edit|cancel|view|approve|reject|pending> [args]");
-            System.out.println("  physio:therapy <addpt|removept|addot|removeot|listpt|listot|markpt|markot> [args]");
+            System.out.println("  physio:therapy list <pt|ot> <PHYSIO|PATIENT> <patientId>");
+            System.out.println("  physio:therapy add <pt|ot> PHYSIO <patientId> <activityName>");
+            System.out.println("  physio:therapy remove <pt|ot> PHYSIO <patientId> <activityIndex>");
+            System.out.println("  physio:therapy mark <pt|ot> PATIENT <patientId> <activityIndex>");
             System.out.println("  physio:journal   (TODO)");
             System.out.println("  physio:summary   (TODO)");
             System.out.println("  physio:progress  (TODO)");
@@ -282,195 +285,207 @@ public class Activator implements BundleActivator {
         // Therapy module CLI (UC11/12/20/21)
         // -------------------------
         public void therapy(String action, String... args) {
-            String a = (action == null) ? "" : action.trim().toLowerCase();
 
-            if (args.length < 2) {
-                System.out.println("Usage: physio:therapy <action> <role> <userId> [otherArgs...]");
+            if (args.length < 3) {
+                System.out.println("Usage:");
+                System.out.println("  physio:therapy list <pt|ot> <PHYSIO|PATIENT> <patientId>");
+                System.out.println("  physio:therapy add <pt|ot> PHYSIO <patientId> <activityName>");
+                System.out.println("  physio:therapy remove <pt|ot> PHYSIO <patientId> <activityIndex>");
+                System.out.println("  physio:therapy mark <pt|ot> PATIENT <programId> <activityIndex>");
                 return;
             }
-            String role = args[0].trim().toUpperCase();
-            Long userId = parseLong(args[1], "userId");
-            String[] opArgs = Arrays.copyOfRange(args, 2, args.length);
+
+            String type = args[0].toLowerCase();
+            String role = args[1].toUpperCase();
+            Long mainId = parseLong(args[2], "id");
+            String[] opArgs = Arrays.copyOfRange(args, 3, args.length);
+
+            if (!type.equals("pt") && !type.equals("ot")) {
+                System.out.println("Invalid type. Use pt or ot.");
+                return;
+            }
+
+            if (action.equals("list") || action.equals("add") || action.equals("remove")) {
+                final boolean[] ok = { true };
+
+                withService(UserManagementService.class, userSvc -> {
+                    User u = userSvc.findById(mainId);
+                    if (u == null || !"PATIENT".equalsIgnoreCase(u.getRole())) {
+                        System.out.println("ERROR: User " + mainId + " is not a PATIENT.");
+                        ok[0] = false;
+                    }
+                });
+
+                if (!ok[0]) return;
+            }
 
             withService(TherapyManagementService.class, svc -> {
-                switch (a) {
-                    case "listpt": {
-                        Long patientId = userId;
-                        PTProgram ptProgram = svc.findPTProgramByPatientId(patientId);
-                        if (ptProgram == null || ptProgram.getActivities() == null || ptProgram.getActivities().isEmpty()) {
-                            System.out.println("No PT activities for patient " + patientId);
+
+                switch (action) {
+
+                    //UC11 & UC12  View daily pt/ot activities
+
+                    case "list": {
+                        if ("pt".equals(type)) {
+                            PTProgram ptProgram = svc.findPTProgramByPatientId(mainId);
+                            if (ptProgram == null || ptProgram.getActivities().isEmpty()) {
+                                System.out.println("No PT activities for patient " + mainId);
+                            } else {
+                                System.out.println("PT Activities for patient " + mainId + ":");
+                                for (int i = 0; i < ptProgram.getActivities().size(); i++) {
+                                    PTActivity a = ptProgram.getActivities().get(i);
+                                    System.out.println(" " + (i + 1) + ") " + a.getName()
+                                            + " | Completed: " + a.isCompleted());
+                                }
+                            }
                         } else {
-                            System.out.println("PT Activities for patient " + patientId + ":");
-                            for (int i = 0; i < ptProgram.getActivities().size(); i++) {
-                                PTActivity aObj = ptProgram.getActivities().get(i);
-                                System.out.println(" " + (i + 1) + ") " + aObj.getName() + " | Completed: " + aObj.isCompleted());
+                            OTProgram otProgram = svc.findOTProgramByPatientId(mainId);
+                            if (otProgram == null || otProgram.getActivities().isEmpty()) {
+                                System.out.println("No OT activities for patient " + mainId);
+                            } else {
+                                System.out.println("OT Activities for patient " + mainId + ":");
+                                for (int i = 0; i < otProgram.getActivities().size(); i++) {
+                                    OTActivity a = otProgram.getActivities().get(i);
+                                    System.out.println(" " + (i + 1) + ") " + a.getName()
+                                            + " | Completed: " + a.isCompleted());
+                                }
                             }
                         }
                         break;
                     }
-                    case "listot": {
-                        Long patientId = userId;
-                        OTProgram otProgram = svc.findOTProgramByPatientId(patientId);
-                        if (otProgram == null || otProgram.getActivities() == null || otProgram.getActivities().isEmpty()) {
-                            System.out.println("No OT activities for patient " + patientId);
-                        } else {
-                            System.out.println("OT Activities for patient " + patientId + ":");
-                            for (int i = 0; i < otProgram.getActivities().size(); i++) {
-                                OTActivity aObj = otProgram.getActivities().get(i);
-                                System.out.println(" " + (i + 1) + ") " + aObj.getName() + " | Completed: " + aObj.isCompleted());
-                            }
-                        }
-                        break;
-                    }
-                    case "removept": {
-                        if (opArgs.length < 1) {
-                            System.out.println("Usage: physio:therapy removept PHYSIO <patientId> <activityIndex>");
+
+                    //UC20 & UC21  Modify pt/ot activities (Add)
+
+                    case "add": {
+                        if (!"PHYSIO".equals(role)) {
+                            System.out.println("Only PHYSIO can add activities.");
                             return;
                         }
-                        Long patientId = userId;
-                        int ptIndex = Integer.parseInt(opArgs[1]) - 1;
-                        PTProgram ptProgram = svc.findPTProgramByPatientId(patientId);
-                        if (ptProgram == null || ptProgram.getActivities() == null || ptProgram.getActivities().isEmpty()) {
-                            System.out.println("No PT activities to remove for patient " + patientId);
-                        } else if (ptIndex < 0 || ptIndex >= ptProgram.getActivities().size()) {
-                            System.out.println("Invalid activity index.");
-                        } else {
-                            PTActivity toRemove = ptProgram.getActivities().get(ptIndex);
-                            svc.removePTActivity(ptProgram.getPatientId(), toRemove.getId());
-                            System.out.println("Removed PT activity '" + toRemove.getName() + "' for patient " + patientId);
-                        }
-                        break;
-                    }
-                    case "removeot": {
                         if (opArgs.length < 1) {
-                            System.out.println("Usage: physio:therapy removeot PHYSIO <patientId> <activityIndex>");
+                            System.out.println("Usage: physio:therapy add <pt|ot> PHYSIO <patientId> <activityName>");
                             return;
                         }
-                        Long patientId = userId;
-                        int otIndex = Integer.parseInt(opArgs[1]) - 1;
-                        OTProgram otProgram = svc.findOTProgramByPatientId(patientId);
-                        if (otProgram == null || otProgram.getActivities() == null || otProgram.getActivities().isEmpty()) {
-                            System.out.println("No OT activities to remove for patient " + patientId);
-                        } else if (otIndex < 0 || otIndex >= otProgram.getActivities().size()) {
-                            System.out.println("Invalid activity index.");
-                        } else {
-                            OTActivity toRemove = otProgram.getActivities().get(otIndex);
-                            svc.removeOTActivity(otProgram.getPatientId(), toRemove.getId());
-                            System.out.println("Removed OT activity '" + toRemove.getName() + "' for patient " + patientId);
-                        }
-                        break;
-                    }
-                    case "addpt": {
-                        if (opArgs.length < 1) {
-                            System.out.println("Usage: physio:therapy addpt PHYSIO <patientId> <activityName>");
-                            return;
-                        }
-                        Long patientId = userId;
+
                         String activityName = joinFrom(opArgs, 0);
-                        PTProgram ptProgram = svc.findPTProgramByPatientId(patientId);
-                        if (ptProgram == null) {
-                            ptProgram = new com.physiotrack.therapy.api.model.PTProgram();
-                            ptProgram.setPatientId(patientId);
-                            svc.savePTProgram(ptProgram);
-                        }
-                        Long ptProgramId = ptProgram.getPatientId();
-                        PTActivity ptActivity = new PTActivity();
-                        ptActivity.setName(activityName);
-                        ptActivity.setCompleted(false);
-                        svc.addPTActivity(ptProgramId, ptActivity);
-                        System.out.println("Added PT activity '" + activityName + "' for patient " + patientId);
-                        break;
-                    }
-                    case "addot": {
-                        if (opArgs.length < 1) {
-                            System.out.println("Usage: physio:therapy addot PHYSIO <patientId> <activityName>");
-                            return;
-                        }
-                        Long patientId = userId;
-                        String activityName = joinFrom(opArgs, 0);
-                        OTProgram otProgram = svc.findOTProgramByPatientId(patientId);
-                        if (otProgram == null) {
-                            otProgram = new com.physiotrack.therapy.api.model.OTProgram();
-                            otProgram.setPatientId(patientId);
-                            svc.saveOTProgram(otProgram);
-                        }
-                        Long otProgramId = otProgram.getPatientId();
-                        OTActivity otActivity = new OTActivity();
-                        otActivity.setName(activityName);
-                        otActivity.setCompleted(false);
-                        svc.addOTActivity(otProgramId, otActivity);
-                        System.out.println("Added OT activity '" + activityName + "' for patient " + patientId);
-                        break;
-                    }
-                    case "markpt": {
-                        if (!"PATIENT".equals(role)) {
-                            System.out.println("Only patients can mark PT activities as completed.");
-                            return;
-                        }
-                        if (opArgs.length < 1) {
-                            System.out.println("Usage: physio:therapy markpt PATIENT <programId> <activityIndex>");
-                            return;
-                        }
-                        Long programId = parseLong(opArgs[0], "programId");
-                        int activityIndex = Integer.parseInt(opArgs[1]) - 1;
-                        withService(TherapyProgressService.class, progressSvc -> {
-                            List<PTActivity> activities = progressSvc.getPTActivities(programId);
-                            if (activities == null || activities.isEmpty()) {
-                                System.out.println("No PT activities to mark for this program.");
-                                return;
+
+                        if ("pt".equals(type)) {
+                            PTProgram ptProgram = svc.findPTProgramByPatientId(mainId);
+                            if (ptProgram == null) {
+                                ptProgram = new PTProgram();
+                                ptProgram.setPatientId(mainId);
+                                svc.savePTProgram(ptProgram);
                             }
-                            if (activityIndex < 0 || activityIndex >= activities.size()) {
+
+                            PTActivity activity = new PTActivity();
+                            activity.setName(activityName);
+                            activity.setCompleted(false);
+                            svc.addPTActivity(mainId, activity);
+                        } else {
+                            OTProgram otProgram = svc.findOTProgramByPatientId(mainId);
+                            if (otProgram == null) {
+                                otProgram = new OTProgram();
+                                otProgram.setPatientId(mainId);
+                                svc.saveOTProgram(otProgram);
+                            }
+
+                            OTActivity activity = new OTActivity();
+                            activity.setName(activityName);
+                            activity.setCompleted(false);
+                            svc.addOTActivity(mainId, activity);
+                        }
+
+                        System.out.println("Added " + type.toUpperCase() + " activity '" + activityName + "'");
+                        break;
+                    }
+
+                    //UC22 & UC23  Modify pt/ot activities (Remove)
+
+                    case "remove": {
+                        if (!"PHYSIO".equals(role)) {
+                            System.out.println("Only PHYSIO can remove activities.");
+                            return;
+                        }
+                        if (opArgs.length < 1) {
+                            System.out.println("Usage: physio:therapy remove <pt|ot> PHYSIO <patientId> <activityIndex>");
+                            return;
+                        }
+
+                        int index = Integer.parseInt(opArgs[0]) - 1;
+
+                        if ("pt".equals(type)) {
+                            PTProgram ptProgram = svc.findPTProgramByPatientId(mainId);
+                            if (ptProgram == null || index < 0 || index >= ptProgram.getActivities().size()) {
                                 System.out.println("Invalid activity index.");
                                 return;
                             }
-                            PTActivity selectedActivity = activities.get(activityIndex);
-                            if (selectedActivity.isCompleted()) {
-                                System.out.println("Activity is already marked as completed.");
+                            PTActivity toRemove = ptProgram.getActivities().get(index);
+                            svc.removePTActivity(mainId, toRemove.getId());
+                            System.out.println("Removed PT activity '" + toRemove.getName() + "'");
+                        } else {
+                            OTProgram otProgram = svc.findOTProgramByPatientId(mainId);
+                            if (otProgram == null || index < 0 || index >= otProgram.getActivities().size()) {
+                                System.out.println("Invalid activity index.");
+                                return;
+                            }
+                            OTActivity toRemove = otProgram.getActivities().get(index);
+                            svc.removeOTActivity(mainId, toRemove.getId());
+                            System.out.println("Removed OT activity '" + toRemove.getName() + "'");
+                        }
+                        break;
+                    }
+
+                    //UC11 & UC12  View pt/ot activities (Mark)
+
+                    case "mark": {
+                        if (!"PATIENT".equals(role)) {
+                            System.out.println("Only PATIENT can mark activities.");
+                            return;
+                        }
+                        if (opArgs.length < 1) {
+                            System.out.println("Usage: physio:therapy mark <pt|ot> PATIENT <programId> <activityIndex>");
+                            return;
+                        }
+
+                        int index = Integer.parseInt(opArgs[0]) - 1;
+
+                        withService(TherapyProgressService.class, progressSvc -> {
+                            if ("pt".equals(type)) {
+                                List<PTActivity> activities = progressSvc.getPTActivities(mainId);
+                                if (activities == null || index < 0 || index >= activities.size()) {
+                                    System.out.println("Invalid activity index.");
+                                    return;
+                                }
+                                PTActivity a = activities.get(index);
+                                if (a.isCompleted()) {
+                                    System.out.println("Activity already completed.");
+                                } else {
+                                    progressSvc.markPTCompleted(mainId, a.getId());
+                                    System.out.println("Marked PT activity '" + a.getName() + "' as completed.");
+                                }
                             } else {
-                                progressSvc.markPTCompleted(programId, selectedActivity.getId());
-                                System.out.println("Marked PT activity '" + selectedActivity.getName() + "' as completed.");
+                                List<OTActivity> activities = progressSvc.getOTActivities(mainId);
+                                if (activities == null || index < 0 || index >= activities.size()) {
+                                    System.out.println("Invalid activity index.");
+                                    return;
+                                }
+                                OTActivity a = activities.get(index);
+                                if (a.isCompleted()) {
+                                    System.out.println("Activity already completed.");
+                                } else {
+                                    progressSvc.markOTCompleted(mainId, a.getId());
+                                    System.out.println("Marked OT activity '" + a.getName() + "' as completed.");
+                                }
                             }
                         });
                         break;
                     }
-                    case "markot": {
-                        if (!"PATIENT".equals(role)) {
-                            System.out.println("Only patients can mark OT activities as completed.");
-                            return;
-                        }
-                        if (opArgs.length < 1) {
-                            System.out.println("Usage: physio:therapy markot PATIENT <programId> <activityIndex>");
-                            return;
-                        }
-                        Long programId = parseLong(opArgs[0], "programId");
-                        int activityIndex = Integer.parseInt(opArgs[1]) - 1;
-                        withService(TherapyProgressService.class, progressSvc -> {
-                            List<OTActivity> activities = progressSvc.getOTActivities(programId);
-                            if (activities == null || activities.isEmpty()) {
-                                System.out.println("No OT activities to mark for this program.");
-                                return;
-                            }
-                            if (activityIndex < 0 || activityIndex >= activities.size()) {
-                                System.out.println("Invalid activity index.");
-                                return;
-                            }
-                            OTActivity selectedActivity = activities.get(activityIndex);
-                            if (selectedActivity.isCompleted()) {
-                                System.out.println("Activity is already marked as completed.");
-                            } else {
-                                progressSvc.markOTCompleted(programId, selectedActivity.getId());
-                                System.out.println("Marked OT activity '" + selectedActivity.getName() + "' as completed.");
-                            }
-                        });
-                        break;
-                    }
+
                     default:
                         System.out.println("Unknown therapy action: " + action);
-                        System.out.println("Try: physio:therapy addpt|removept|listpt|addot|removeot|listot|markpt|markot ...");
                 }
             });
         }
-        
+
         // -------------------------
         // Other modules: empty TODO stubs for now
         // -------------------------
