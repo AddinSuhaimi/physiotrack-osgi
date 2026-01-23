@@ -24,41 +24,49 @@
       <groupId>com.physiotrack</groupId>
       <artifactId>appointment-api</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.physiotrack</groupId>
       <artifactId>therapy-api</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.physiotrack</groupId>
       <artifactId>journal-api</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.physiotrack</groupId>
       <artifactId>summary-api</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.physiotrack</groupId>
       <artifactId>progress-tracking-api</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.physiotrack</groupId>
       <artifactId>user-management-api</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.physiotrack</groupId>
       <artifactId>personal-info-api</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.physiotrack</groupId>
       <artifactId>test-api</artifactId>
       <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
     
   </dependencies>
