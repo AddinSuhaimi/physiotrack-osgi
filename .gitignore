@@ -1,8 +1,34 @@
+# Maven
 /target/
 **/target/
+
+# OSGi / Felix runtime artifacts
+/runtime/
+/felix-cache/
+**/felix-cache/
+
+# JARs (build artifacts)
+*.jar
+*.war
+*.ear
+
+# Eclipse
 .classpath
 .project
 .settings/
+
+# IntelliJ
 .idea/
 *.iml
+
+# OS
 .DS_Store
+
+# Apache Felix runtime cache
+runtime/
+**/runtime/
+felix-cache/
+**/felix-cache/
+bundle.info
+bundle.jar
+

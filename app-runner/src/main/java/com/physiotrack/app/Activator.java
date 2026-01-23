@@ -3,19 +3,16 @@ package com.physiotrack.app;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
-
-import org.osgi.framework.BundleActivator;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.ServiceReference;
-import org.osgi.framework.ServiceRegistration;
 
 import com.physiotrack.appointment.api.AppointmentService;
 import com.physiotrack.appointment.api.ScheduleService;
 import com.physiotrack.appointment.api.model.Appointment;
 import com.physiotrack.journal.api.JournalService;
+import com.physiotrack.journal.api.model.Journal;
 import com.physiotrack.personal.info.api.PersonalInfoService;
 import com.physiotrack.progress.tracking.api.ProgressTrackingService;
 import com.physiotrack.progress.tracking.api.model.TreatmentReport;
@@ -37,13 +34,6 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.ServiceReference;
 import org.osgi.framework.ServiceRegistration;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.Dictionary;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Arrays;
 public class Activator implements BundleActivator {
 
     private BundleContext ctx;
@@ -94,8 +84,8 @@ public class Activator implements BundleActivator {
             System.out.println("  physio:therapy add <pt|ot> PHYSIO <patientId> <activityName>");
             System.out.println("  physio:therapy remove <pt|ot> PHYSIO <patientId> <activityIndex>");
             System.out.println("  physio:therapy mark <pt|ot> PATIENT <patientId> <activityIndex>");
-            System.out.println("  physio:journal   (TODO)");
-            System.out.println("  physio:summary   (TODO)");
+            System.out.println("  physio:journal <create|view|list|edit|delete|share>");
+            System.out.println("  physio:summary <view|badges|badge>");
             System.out.println("  physio:progress  <patients|details|reports|create> [args]");
             System.out.println("  physio:user create <username> <email> <role> [clinic]");
             System.out.println("  physio:user list");
@@ -509,11 +499,277 @@ public class Activator implements BundleActivator {
         // Other modules: empty TODO stubs for now
         // -------------------------
         public void journal(String... args) {
-            System.out.println("[TODO] Journal module CLI not implemented yet.");
+            String action = (args.length > 0 && args[0] != null) ? args[0].trim().toLowerCase() : "";
+
+            switch (action) {
+                case "create" -> withService(JournalService.class, svc -> {
+                    if (args.length < 3) {
+                        System.out.println("Usage: physio:journal create <patientId> <title> [comment]");
+                        return;
+                    }
+                    Long patientId = parseLong(args[1], "patientId");
+                    String title = args[2];
+                    String comment = args.length > 3 ? joinFrom(args, 3) : "";
+
+                    Journal j = new Journal();
+                    j.setTitle(title);
+                    j.setComment(comment);
+
+                    Journal created = svc.createJournal(patientId, j);
+                    System.out.println("Created journal: " + formatJournal(created));
+                });
+
+                case "view" -> withService(JournalService.class, svc -> {
+                    if (args.length < 2) {
+                        System.out.println("Usage: physio:journal view <journalId>");
+                        return;
+                    }
+                    Long id = parseLong(args[1], "journalId");
+                    Journal j = svc.getJournalById(id);
+                    System.out.println(formatJournal(j));
+                });
+
+                case "list" -> withService(JournalService.class, svc -> {
+                    if (args.length < 2) {
+                        System.out.println("Usage: physio:journal list <patientId>");
+                        return;
+                    }
+                    Long patientId = parseLong(args[1], "patientId");
+                    svc.listJournalsForPatient(patientId).forEach(x -> System.out.println("  - " + formatJournal(x)));
+                });
+
+                case "edit" -> withService(JournalService.class, svc -> {
+                    if (args.length < 4) {
+                        System.out.println("Usage: physio:journal edit <patientId> <journalId> <newTitle> [newComment]");
+                        return;
+                    }
+                    Long patientId = parseLong(args[1], "patientId");
+                    Long journalId = parseLong(args[2], "journalId");
+                    String newTitle = args[3];
+                    String newComment = args.length > 4 ? joinFrom(args, 4) : null;
+
+                    Journal upd = new Journal();
+                    upd.setTitle(newTitle);
+                    if (newComment != null) upd.setComment(newComment);
+
+                    Journal out = svc.updateJournal(patientId, journalId, upd);
+                    System.out.println("Updated: " + formatJournal(out));
+                });
+
+                case "delete" -> withService(JournalService.class, svc -> {
+                    if (args.length < 3) {
+                        System.out.println("Usage: physio:journal delete <patientId> <journalId>");
+                        return;
+                    }
+                    Long patientId = parseLong(args[1], "patientId");
+                    Long journalId = parseLong(args[2], "journalId");
+                    boolean ok = svc.deleteJournal(patientId, journalId);
+                    System.out.println(ok ? "Deleted" : "Delete failed");
+                });
+
+                case "share" -> withService(JournalService.class, svc -> {
+                    if (args.length < 3) {
+                        System.out.println("Usage: physio:journal share <journalId> <true|false>");
+                        return;
+                    }
+                    Long journalId = parseLong(args[1], "journalId");
+                    boolean share = Boolean.parseBoolean(args[2]);
+                    Journal out = svc.setSharePermission(journalId, share);
+                    System.out.println("Updated share: " + (out != null && out.isSharedWithPhysio()));
+                });
+
+                case "" -> System.out.println("Usage: physio:journal <create|view|list|edit|delete|share> ...");
+
+                default -> System.out.println("Unknown journal action: " + action);
+            }
+        }
+
+        private String formatJournal(Journal j) {
+            if (j == null) return "(null)";
+            try {
+                return "id=" + j.getId()
+                        + " patientId=" + j.getPatientId()
+                        + " title=\"" + (j.getTitle() == null ? "" : j.getTitle()) + "\""
+                        + (j.getComment() != null ? " comment=\"" + j.getComment() + "\"" : "")
+                        + " shared=" + j.isSharedWithPhysio();
+            } catch (Exception e) {
+                return j.toString();
+            }
         }
 
         public void summary(String... args) {
-            System.out.println("[TODO] Summary module CLI not implemented yet.");
+            String action = (args.length > 0 && args[0] != null) ? args[0].trim().toLowerCase() : "";
+
+            ServiceReference<SummaryService> ref = null;
+            Object svc = null;
+            try {
+                ref = ctx.getServiceReference(SummaryService.class);
+                if (ref == null) {
+                    System.out.println("Service not available: SummaryService (start the summary-impl bundle)");
+                    return;
+                }
+                svc = ctx.getService(ref);
+                if (svc == null) {
+                    System.out.println("Service instance null: SummaryService");
+                    return;
+                }
+
+                switch (action) {
+                    case "view": {
+                        if (args.length < 2) {
+                            System.out.println("Usage: physio:summary view <patientId> [yyyy-mm]");
+                            return;
+                        }
+                        Long patientId = parseLong(args[1], "patientId");
+                        int year;
+                        int month;
+                        if (args.length >= 3) {
+                            String[] ym = args[2].split("-");
+                            if (ym.length != 2) {
+                                System.out.println("Invalid year-month. Expected yyyy-mm");
+                                return;
+                            }
+                            year = Integer.parseInt(ym[0]);
+                            month = Integer.parseInt(ym[1]);
+                        } else {
+                            LocalDate now = LocalDate.now();
+                            year = now.getYear();
+                            month = now.getMonthValue();
+                        }
+
+                        // Try text-based summary service first (avoids API classloader mismatch)
+                        try {
+                            ServiceReference<?> textRef = ctx.getServiceReference("com.physiotrack.summary.text.TextSummaryService");
+                            if (textRef != null) {
+                                Object textSvc = ctx.getService(textRef);
+                                try {
+                                    java.lang.reflect.Method mtext = textSvc.getClass().getMethod("getMonthlySummaryText", Long.class, int.class, int.class);
+                                    Object txt = mtext.invoke(textSvc, patientId, year, month);
+                                    System.out.println(txt == null ? "(no summary)" : txt.toString());
+                                    return;
+                                } catch (NoSuchMethodException nsme) {
+                                    // fallback to API reflective call
+                                } finally {
+                                    ctx.ungetService(textRef);
+                                }
+                            }
+
+                        } catch (Throwable t) {
+                            System.out.println("TextSummaryService attempt failed:");
+                            t.printStackTrace(System.out);
+                        }
+
+                        try {
+                            java.lang.reflect.Method m;
+                            try {
+                                m = svc.getClass().getMethod("getMonthlyProgress", Long.class, int.class, int.class);
+                            } catch (NoSuchMethodException nsme) {
+                                throw nsme;
+                            }
+                            Object p = m.invoke(svc, patientId, year, month);
+                            if (p == null) {
+                                System.out.println("No summary available for patient " + patientId);
+                                return;
+                            }
+                            java.lang.reflect.Method gmYear = p.getClass().getMethod("getYear");
+                            java.lang.reflect.Method gmMonth = p.getClass().getMethod("getMonth");
+                            java.lang.reflect.Method gmTotal = p.getClass().getMethod("getTotalSessions");
+                            java.lang.reflect.Method gmCompleted = p.getClass().getMethod("getCompletedSessions");
+                            java.lang.reflect.Method gmRate = p.getClass().getMethod("getCompletionRate");
+                            Object py = gmYear.invoke(p);
+                            Object pm = gmMonth.invoke(p);
+                            Object ptotal = gmTotal.invoke(p);
+                            Object pcomp = gmCompleted.invoke(p);
+                            Object prate = gmRate.invoke(p);
+
+                            System.out.println("Monthly Summary for patient=" + patientId + " " + py + "-" + String.format("%02d", pm));
+                            System.out.println("  totalSessions=" + ptotal + " completed=" + pcomp + " completionRate=" + prate + "%");
+
+                            java.lang.reflect.Method gmBadges = p.getClass().getMethod("getBadges");
+                            Object badgesObj = gmBadges.invoke(p);
+                            if (badgesObj instanceof java.util.List list && !list.isEmpty()) {
+                                System.out.println("  badges:");
+                                for (Object b : list) {
+                                    System.out.println("    - " + formatBadgeReflect(b));
+                                }
+                            } else {
+                                System.out.println("  badges: (none)");
+                            }
+                        } catch (Throwable e) {
+                            System.out.println("Exception while invoking SummaryService.getMonthlyProgress:");
+                            e.printStackTrace(System.out);
+                        }
+                        break;
+                    }
+
+                    case "badges": {
+                        if (args.length < 2) {
+                            System.out.println("Usage: physio:summary badges <patientId> [yyyy-mm]");
+                            return;
+                        }
+                        Long patientId = parseLong(args[1], "patientId");
+                        int year;
+                        int month;
+                        if (args.length >= 3) {
+                            String[] ym = args[2].split("-");
+                            year = Integer.parseInt(ym[0]);
+                            month = Integer.parseInt(ym[1]);
+                        } else {
+                            LocalDate now = LocalDate.now();
+                            year = now.getYear();
+                            month = now.getMonthValue();
+                        }
+                        try {
+                            java.lang.reflect.Method m = svc.getClass().getMethod("listBadgesForMonth", Long.class, int.class, int.class);
+                            Object badgesObj = m.invoke(svc, patientId, year, month);
+                            java.util.List<?> badges = badgesObj == null ? java.util.List.of() : (java.util.List<?>) badgesObj;
+                            System.out.println("Badges for " + year + "-" + String.format("%02d", month) + " (patient=" + patientId + ") -> " + badges.size());
+                            for (Object b : badges) System.out.println("  - " + formatBadgeReflect(b));
+                        } catch (Throwable e) {
+                            System.out.println("Exception while invoking SummaryService.listBadgesForMonth:");
+                            e.printStackTrace(System.out);
+                        }
+                        break;
+                    }
+
+                    case "badge": {
+                        if (args.length < 2) {
+                            System.out.println("Usage: physio:summary badge <badgeId>");
+                            return;
+                        }
+                        String badgeId = args[1];
+                        try {
+                            java.lang.reflect.Method m = svc.getClass().getMethod("getBadgeById", String.class);
+                            Object b = m.invoke(svc, badgeId);
+                            if (b == null) {
+                                System.out.println("Badge not found: " + badgeId);
+                                return;
+                            }
+                            System.out.println(formatBadgeReflect(b));
+                            try {
+                                java.lang.reflect.Method md = b.getClass().getMethod("getDescription");
+                                Object desc = md.invoke(b);
+                                System.out.println("  description: " + (desc == null ? "" : desc.toString()));
+                            } catch (NoSuchMethodException ignore) {
+                            }
+                        } catch (Throwable e) {
+                            System.out.println("Exception while invoking SummaryService.getBadgeById:");
+                            e.printStackTrace(System.out);
+                        }
+                        break;
+                    }
+
+                    case "":
+                        System.out.println("Usage: physio:summary <view|badges|badge> ...");
+                        break;
+
+                    default:
+                        System.out.println("Unknown summary action: " + action);
+                        break;
+                }
+            } finally {
+                if (ref != null) ctx.ungetService(ref);
+            }
         }
 
         public void progress(String action, String... args) {
@@ -876,6 +1132,7 @@ public class Activator implements BundleActivator {
                 System.out.println("ERROR: " + ex.getMessage());
             } catch (Exception ex) {
                 System.out.println("ERROR: " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+                ex.printStackTrace(System.out);
             } finally {
                 ctx.ungetService(ref);
             }
@@ -937,6 +1194,30 @@ public class Activator implements BundleActivator {
                         + (a.getDetails() != null ? " details=\"" + a.getDetails() + "\"" : "");
             } catch (Exception e) {
                 return a.toString();
+            }
+        }
+
+        private String formatBadgeReflect(Object b) {
+            if (b == null) return "(null)";
+            try {
+                java.lang.reflect.Method getId = b.getClass().getMethod("getId");
+                java.lang.reflect.Method getName = b.getClass().getMethod("getName");
+                java.lang.reflect.Method isEarned = null;
+                java.lang.reflect.Method getEarnedAt = null;
+                try { isEarned = b.getClass().getMethod("isEarned"); } catch (NoSuchMethodException ignored) {}
+                try { getEarnedAt = b.getClass().getMethod("getEarnedAt"); } catch (NoSuchMethodException ignored) {}
+
+                Object id = getId.invoke(b);
+                Object name = getName.invoke(b);
+                Object earned = isEarned == null ? null : isEarned.invoke(b);
+                Object at = getEarnedAt == null ? null : getEarnedAt.invoke(b);
+
+                return "id=" + id
+                        + " name=\"" + (name == null ? "" : name.toString()) + "\""
+                        + " earned=" + (earned == null ? "?" : earned.toString())
+                        + (at == null ? "" : " at=" + at.toString());
+            } catch (Exception e) {
+                return b.toString();
             }
         }
     }
