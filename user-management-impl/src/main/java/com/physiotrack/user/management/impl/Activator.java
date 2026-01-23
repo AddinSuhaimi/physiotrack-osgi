@@ -1,6 +1,7 @@
 package com.physiotrack.user.management.impl;
 
 import com.physiotrack.user.management.api.UserManagementService;
+import com.physiotrack.user.management.api.model.User;
 import com.physiotrack.user.management.impl.repository.UserRepository;
 
 import org.osgi.framework.BundleActivator;
@@ -35,6 +36,15 @@ public class Activator implements BundleActivator {
         svc.createUser("physioB", "physiob@demo.com", "PHYSIO", "Demo Clinic B");
         svc.createUser("patientX", "patientx@demo.com", "PATIENT", null);
         svc.createUser("patientY", "patienty@demo.com", "PATIENT", null);
+
+        User physioA = svc.createUser("physioA", "physioa@demo.com", "PHYSIO", "Demo Clinic A");
+        User patientX = svc.createUser("patientX", "patientx@demo.com", "PATIENT", null);
+        
+        // Create Relationship
+        if (physioA.getId() != null && patientX.getId() != null) {
+            svc.assignPatientToPhysio(patientX.getId(), physioA.getId());
+            System.out.println("[SEED] Assigned patientX to physioA");
+        }
 
         System.out.println("[SEED] Users seeded (admin/physio/patient)");
     }

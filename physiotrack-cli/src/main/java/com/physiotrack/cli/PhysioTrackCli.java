@@ -5,7 +5,7 @@ import com.physiotrack.journal.api.JournalService;
 import com.physiotrack.personal.info.api.PersonalInfoService;
 import com.physiotrack.progress.tracking.api.ProgressTrackingService;
 import com.physiotrack.summary.api.SummaryService;
-import com.physiotrack.therapy.api.TherapyService;
+import com.physiotrack.therapy.api.TherapyManagementService;
 import com.physiotrack.user.management.api.UserManagementService;
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
@@ -21,7 +21,7 @@ public class PhysioTrackCli {
     volatile AppointmentService appointmentService;
 
     @Reference(cardinality = ReferenceCardinality.OPTIONAL, policy = ReferencePolicy.DYNAMIC)
-    volatile TherapyService therapyService;
+    volatile TherapyManagementService therapyService;
 
     @Reference(cardinality = ReferenceCardinality.OPTIONAL, policy = ReferencePolicy.DYNAMIC)
     volatile JournalService journalService;
