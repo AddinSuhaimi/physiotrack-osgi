@@ -1,11 +1,24 @@
 package com.physiotrack.app;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Dictionary;
+import java.util.Hashtable;
+import java.util.List;
+
+import org.osgi.framework.BundleActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.ServiceReference;
+import org.osgi.framework.ServiceRegistration;
+
 import com.physiotrack.appointment.api.AppointmentService;
 import com.physiotrack.appointment.api.ScheduleService;
 import com.physiotrack.appointment.api.model.Appointment;
 import com.physiotrack.journal.api.JournalService;
 import com.physiotrack.personal.info.api.PersonalInfoService;
 import com.physiotrack.progress.tracking.api.ProgressTrackingService;
+import com.physiotrack.progress.tracking.api.model.TreatmentReport;
 import com.physiotrack.summary.api.SummaryService;
 import com.physiotrack.therapy.api.TherapyManagementService;
 import com.physiotrack.therapy.api.TherapyProgressService;
@@ -44,7 +57,7 @@ public class Activator implements BundleActivator {
         props.put("osgi.command.function", new String[] {
                 "menu", "help", "ping", "pingall",
                 "uc",
-                "appt", "therapy", "journal", "summary", "progress", "user", "personal", "testuc"
+                "appt", "therapy", "journal", "summary", "progress", "user", "personal", "test"
         });
 
         reg = context.registerService(Object.class.getName(), new PhysioCommands(), props);
@@ -81,7 +94,7 @@ public class Activator implements BundleActivator {
             System.out.println("  physio:therapy mark <pt|ot> PATIENT <patientId> <activityIndex>");
             System.out.println("  physio:journal   (TODO)");
             System.out.println("  physio:summary   (TODO)");
-            System.out.println("  physio:progress  (TODO)");
+            System.out.println("  physio:progress  <patients|details|reports|create> [args]");
             System.out.println("  physio:user create <username> <email> <role> [clinic]");
             System.out.println("  physio:user list");
             System.out.println("  physio:user role <role>");
@@ -90,7 +103,7 @@ public class Activator implements BundleActivator {
             System.out.println("  physio:user deactivate <email>");
             System.out.println("  physio:personal update <userId> <address> <phone>");
             System.out.println("  physio:personal lang <userId> <langCode>");
-            System.out.println("  physio:testuc    (TODO)");
+            System.out.println("  physio:test   <evaluate|questionlist|add|edit|remove> [args]");
             System.out.println("==========================================");
         }
 
@@ -109,7 +122,10 @@ public class Activator implements BundleActivator {
                 case "progress", "progress-tracking" -> pingService("Progress-Tracking", ProgressTrackingService.class);
                 case "user", "user-management" -> pingService("User-Management", UserManagementService.class);
                 case "personal", "personal-info" -> pingService("Personal-Info", PersonalInfoService.class);
-                case "test" -> pingService("Test", TestService.class);
+                case "test" -> {
+                    pingService("Test", TestService.class);
+                    pingService("TestManage", TestManageService.class);
+                }
                 default -> {
                     System.out.println("Unknown module: " + module);
                     System.out.println("Try: physio:ping appointment|therapy|journal|summary|progress|user|personal|test");
@@ -126,6 +142,7 @@ public class Activator implements BundleActivator {
             pingService("User-Management", UserManagementService.class);
             pingService("Personal-Info", PersonalInfoService.class);
             pingService("Test", TestService.class);
+            pingService("TestManage", TestManageService.class);
         }
 
         private <T> void pingService(String label, Class<T> clazz) {
@@ -497,9 +514,115 @@ public class Activator implements BundleActivator {
             System.out.println("[TODO] Summary module CLI not implemented yet.");
         }
 
-        public void progress(String... args) {
-            System.out.println("[TODO] Progress-Tracking module CLI not implemented yet.");
+        public void progress(String action, String... args) {
+            String a = (action == null) ? "" : action.trim().toLowerCase();
+
+            switch (a) {
+                case "patients" -> withService(UserManagementService.class, userSvc -> {
+                    List<User> patients = userSvc.listByRole("PATIENT");
+
+                    if (patients == null || patients.isEmpty()) {
+                        System.out.println("No patients found.");
+                        return;
+                    }
+
+                    System.out.println("\n[Patients]");
+                    for (User patient : patients) {
+                        System.out.println("ID   : " + patient.getId());
+                        System.out.println("Name : " + patient.getUsername());
+                        System.out.println("----------------------");
+                    }           
+                });
+
+                // View Patient Details
+                case "details" -> withService(UserManagementService.class, userSvc -> {
+                    if (args.length < 1) {
+                        System.out.println("Usage: physio:progress details <patientId>");
+                        return;
+                    }
+                    Long patientId = parseLong(args[0], "patientId");
+                    User patient = userSvc.findById(patientId);
+
+                    if (patient == null) {
+                        System.out.println("Patient not found.");
+                        return;
+                    }
+
+                    System.out.println("\n[Patient Details Information]");
+                    System.out.println("ID: " + patient.getId());
+                    System.out.println("Username: " + patient.getUsername());
+                    System.out.println("Email: " + patient.getEmail());
+                    System.out.println("Phone: " + patient.getPhone());
+                    System.out.println("Address: " + patient.getAddress());
+                    System.out.println("Language Preference: " + patient.getLanguage());
+                    System.out.println("Active: " + patient.isActive());                
+                });
+
+                // View Progress Reports
+                case "reports" -> withService(ProgressTrackingService.class, progSvc -> {
+                    if (args.length < 1) {
+                        System.out.println("Usage: physio:progress reports <patientId>");
+                        return;
+                    }
+                    Long patientId = parseLong(args[0], "patientId");
+
+                    System.out.println("\n[Patient Progress Reports]");
+
+                    List<TreatmentReport> reports = progSvc.getPatientReports(patientId);
+
+                    if (reports == null || reports.isEmpty()) {
+                        System.out.println("   -> No reports found for this patient.");
+                        return;
+                    }
+
+                    for (TreatmentReport report : reports) {
+                        System.out.println(
+                                "ID: " + report.getId()
+                                        + " | Title: " + report.getReportTitle()
+                                        + " | Type: " + report.getReportType()
+                                        + " | Activity: " + report.getActivity()
+                                        + " | Performance: " + report.getPerformance()
+                                        + " | Date: " +
+                                        (report.getDateTime() != null ? report.getDateTime() : "(not set)")
+                        );
+                    }                
+                });
+
+                // Create Treatment Report
+                case "create" -> withService(ProgressTrackingService.class, progSvc -> {
+                    if (args.length < 5) {
+                        System.out.println(
+                                "Usage: physio:progress create <patientId> <title> <type> <activity> <performance>");
+                        System.out.println(
+                                "Example: physio:progress create 4 \"Week 1\" Rehab Stretching 85");
+                        return;
+                    }
+
+                    Long patientId = parseLong(args[0], "patientId");
+                    String title = args[1];
+                    String type = args[2];
+                    String activity = args[3];
+                    int performance = Integer.parseInt(args[4]);
+
+                    try {
+                        TreatmentReport report = progSvc.createReport(title, type, performance, activity, patientId);
+                        System.out.println("SUCCESS: Report created with ID " + report.getId());
+                    } catch (Exception e) {
+                        System.out.println("FAILED to create report: " + e.getMessage());
+                    }
+                });
+
+                default -> {
+                    System.out.println("Unknown progress command.");
+                    System.out.println("Try:");
+                    System.out.println("  physio:progress patients");
+                    System.out.println("  physio:progress details <patientId>");
+                    System.out.println("  physio:progress reports <patientId>");
+                    System.out.println("  physio:progress create <patientId> <title> <type> <activity> <performance>");
+                }
+            }
         }
+
 
         // -----------------------------------------------------
         // MODULE 1: USER MANAGEMENT CLI
@@ -611,9 +734,113 @@ public class Activator implements BundleActivator {
             });
         }
 
-        public void testuc(String... args) {
-            System.out.println("[TODO] Test module CLI not implemented yet.");
+        public void test(String action, String... args) {
+            String act = (action == null) ? "" : action.trim().toLowerCase();
+
+            switch (act) {
+                case "evaluate" -> withService(TestService.class, svc -> {
+                    List<Question> questions = svc.getScrenningTestQuestions();
+                    if (args.length < questions.size()) {
+                        System.out.println("Usage: physio:test evaluate <answer1> <answer2> ... <answer" + questions.size() + ">");
+                        return;
+                    }
+                    List<String> answers = java.util.Arrays.asList(args).subList(0, questions.size());
+                    int score = svc.evaluate(answers);
+                    System.out.println("Screening test completed. Score: " + score);
+                });
+
+                case "questionlist" -> withService(TestManageService.class, svc -> {
+                    List<Question> questions = svc.getQuestionList();
+                    System.out.println("Questions :");
+                    for (int i = 0; i < questions.size(); i++) {
+                        Question question = questions.get(i);
+                        System.out.println(" " + (i+1) + ". " + question.getQuestionDesc());
+                    }
+                });
+
+                case "add" -> withService(TestManageService.class, svc -> {
+                    if (args.length < 3) {
+                        System.out.println("Usage: physio:test add <desc> <category> <correctAnswer>");
+                        return;
+                    }
+                    
+                    Question question = svc.addQuestion(args[0], args[1], args[2]);
+                    System.out.println("Question added successfully:");
+                    System.out.println("ID       : " + question.getQuestionId());
+                    System.out.println("Desc     : " + question.getQuestionDesc());
+                    System.out.println("Category : " + question.getQuestionCat());
+                    System.out.println("Answer   : " + question.getQuestionAns());
+                });
+
+                case "edit" -> withService(TestManageService.class, svc -> {
+                    if (args.length < 4) {
+                        System.out.println(
+                            "Usage: physio:test edit <index> <desc|-> <category|-> <correctAnswer|->"
+                        );
+                        System.out.println("Use '-' to keep the current value.");
+                        return;
+                    }
+
+                    try {
+                        int index = Integer.parseInt(args[0]) - 1;
+                        List<Question> questions = svc.getQuestionList();
+
+                        if (index < 0 || index >= questions.size()) {
+                            System.out.println("Invalid question index: " + (index + 1));
+                            return;
+                        }
+
+                        Question q = questions.get(index);
+
+                        // Only update fields if user does NOT enter "-"
+                        if (!args[1].equals("-")) {
+                            q.setQuestionDesc(args[1]);
+                        }
+
+                        if (!args[2].equals("-")) {
+                            q.setQuestionCat(args[2]);
+                        }
+
+                        if (!args[3].equals("-")) {
+                            q.setQuestionAns(args[3]);
+                        }
+
+                        Question questionEdited = svc.editQuestion(q);
+
+                        System.out.println("Edited question at index " + (index + 1));
+                        System.out.println("Description : " + questionEdited.getQuestionDesc());
+                        System.out.println("Category    : " + questionEdited.getQuestionCat());
+                        System.out.println("Answer      : " + questionEdited.getQuestionAns());
+
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid index: " + args[0]);
+                    }
+                });
+
+                case "remove" -> withService(TestManageService.class, svc -> {
+                    if (args.length < 1) {
+                        System.out.println("Usage: physio:test remove <index>");
+                        return;
+                    }
+                    try {
+                        int index = Integer.parseInt(args[0]) - 1;
+                        List<Question> questions = svc.getQuestionList();
+                        if (index < 0 || index >= questions.size()) {
+                            System.out.println("Invalid question index: " + (index + 1));
+                            return;
+                        }
+                        Question q = questions.get(index);
+                        svc.removeQuestion(q);
+                        System.out.println("Removed question at index " + (index + 1) + ": " + q.getQuestionDesc());
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid index: " + args[0]);
+                    }
+                });
+
+                default -> System.out.println("Unknown test action: evaluate|questionlist|add|edit|remove");
+            }
         }
+
 
         // -------------------------
         // Helpers
