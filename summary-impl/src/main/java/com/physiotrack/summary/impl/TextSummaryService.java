@@ -1,6 +1,6 @@
 package com.physiotrack.summary.impl;
 
-public class TextSummaryService {
+public class TextSummaryService implements com.physiotrack.summary.text.TextSummaryService {
 
     private final SummaryServiceImpl delegate;
 
@@ -13,6 +13,7 @@ public class TextSummaryService {
         this.delegate = delegate;
     }
 
+    @Override
     public String getMonthlySummaryText(Long patientId, int year, int month) {
         try {
             com.physiotrack.summary.api.model.MonthlyProgress p = delegate.getMonthlyProgress(patientId, year, month);
